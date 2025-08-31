@@ -1,11 +1,10 @@
 use gloo_net::http::Method;
-use gloo_storage::Storage;
 use leptos::web_sys;
 use leptos::{prelude::*, reactive::spawn_local};
 use serde::Serialize;
 
-use crate::login::is_logged_in;
 use crate::request::{Auth, TokenResponse, request_json};
+use crate::session::Session;
 
 #[component]
 pub fn RegistrationPage() -> impl IntoView {
@@ -24,7 +23,7 @@ pub fn RegistrationPage() -> impl IntoView {
 
 #[component]
 pub fn RegistrationForm() -> impl IntoView {
-    if is_logged_in() {
+    if Session::is_logged_in() {
         web_sys::window()
             .expect("No global window")
             .location()
@@ -66,17 +65,13 @@ pub fn RegistrationForm() -> impl IntoView {
             .await
             {
                 Ok(response) => {
-                    gloo_storage::LocalStorage::set("username", body.username)
-                        .expect("Failed to store username");
-
-                    gloo_storage::LocalStorage::set("access_token", response.access_token)
-                        .expect("Failed to store auth token");
-
-                    gloo_storage::LocalStorage::set(
-                        "refresh_token",
-                        response.refresh_token.unwrap_or_default(),
-                    )
-                    .expect("Failed to store refresh token");
+                    if let Err(e) =
+                        Session::log_in(response.access_token, response.refresh_token).await
+                    {
+                        set_message.set(Some(e));
+                        set_loading.set(false);
+                        return;
+                    }
 
                     web_sys::window()
                         .expect("No global window")

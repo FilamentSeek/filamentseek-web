@@ -1,17 +1,16 @@
-use gloo_storage::Storage;
 use leptos::prelude::*;
 
-use crate::logout::LogoutButton;
+use crate::{logout::LogoutButton, product_search::ProductSearch, session::Session};
 
 #[component]
 pub fn HomePage() -> impl IntoView {
-    let username: Option<String> = gloo_storage::LocalStorage::get::<String>("username").ok();
+    let username: Option<String> = Session::load().map(|s| s.username);
 
     view! {
         <div class="container">
-            <h1>"Homepage"</h1>
+            <h1>"FilamentSeek"</h1>
             <div class="card">
-                <p>"Homepage goes here"</p>
+                <ProductSearch />
                 {
                     if let Some(u) = username {
                         view! { <p>{format!("Logged in as {u}")}</p><br /><LogoutButton /> }.into_any()

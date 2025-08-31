@@ -1,7 +1,12 @@
 [package]
 name = "filamentseek-web"
 version = "0.1.0"
+authors = ["Jason <jason@elg.gg>"]
 edition = "2024"
+repository = "https://github.com/FilamentSeek/filamentseek-web"
+
+[build-dependencies]
+dotenvy = "0.15.7"
 
 [dependencies]
 console_error_panic_hook = "0.1.7"
@@ -13,6 +18,5 @@ gloo-net = { version = "0.6.0", features = ["json"] }
 web-sys = { version = "0.3.77", features = ["Window", "Storage"] }
 tokio = { version = "1.47.1", features = ["macros"] }
 gloo-storage = "0.3.0"
-
-[build-dependencies]
-dotenvy = "0.15.7"
+strum = "0.27.2"
+strum_macros = "0.27.2"

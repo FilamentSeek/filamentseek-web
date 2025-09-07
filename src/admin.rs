@@ -3,9 +3,7 @@ use leptos::{prelude::*, reactive::spawn_local};
 use strum::IntoEnumIterator;
 
 use crate::{
-    product::{
-        Celsius, Cents, FilamentDiameter, FilamentMaterial, Grams, Product, TemperatureSpec,
-    },
+    product::{Cents, FilamentDiameter, FilamentMaterial, Grams, Product},
     request::{Auth, request_json},
     session::Session,
 };
@@ -53,8 +51,6 @@ pub fn ProductEditor(product_id: Option<String>) -> impl IntoView {
     let (material, set_material) = signal::<FilamentMaterial>(FilamentMaterial::Unspecified);
     let (diameter, set_diameter) = signal::<FilamentDiameter>(FilamentDiameter::D175);
     let (weight, set_weight) = signal::<Grams>(Grams(0));
-    let (nozzle_temp, set_nozzle_temp) = signal::<Option<TemperatureSpec>>(None);
-    let (bed_temp, set_bed_temp) = signal::<Option<TemperatureSpec>>(None);
     let (price_dollars_string, set_price_dollars_string) = signal::<String>(String::new());
     let (result_message, set_result_message) = signal::<Option<ResultMessage>>(None);
 
@@ -78,8 +74,6 @@ pub fn ProductEditor(product_id: Option<String>) -> impl IntoView {
                         set_material.set(p.material);
                         set_diameter.set(p.diameter);
                         set_weight.set(p.weight);
-                        set_nozzle_temp.set(p.nozzle_temp);
-                        set_bed_temp.set(p.bed_temp);
                         set_price_dollars_string.set(cents_to_dollars_string(p.price));
                     }
                     Err(e) => {
@@ -146,8 +140,6 @@ pub fn ProductEditor(product_id: Option<String>) -> impl IntoView {
                 material: material.get(),
                 diameter: diameter.get(),
                 weight: weight.get(),
-                nozzle_temp: nozzle_temp.get(),
-                bed_temp: bed_temp.get(),
             };
 
             enum ProductAction {
@@ -360,12 +352,6 @@ pub fn ProductEditor(product_id: Option<String>) -> impl IntoView {
                             }
                         />
                     </div>
-                    <div class="filter-field">
-                            <TemperaturePicker label="Nozzle Temp" on_change=set_nozzle_temp />
-                    </div>
-                    <div class="filter-field">
-                            <TemperaturePicker label="Bed Temp" on_change=set_bed_temp />
-                    </div>
                 </div>
                 <div>
                     <label>"Product Page URL"</label>
@@ -397,98 +383,6 @@ pub fn ProductEditor(product_id: Option<String>) -> impl IntoView {
                     }}
                 </Show>
             </section>
-        </div>
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum TempMode {
-    Unspecified,
-    Exact,
-    Range,
-}
-
-#[component]
-fn TemperaturePicker(
-    label: &'static str,
-    on_change: WriteSignal<Option<TemperatureSpec>>,
-) -> impl IntoView {
-    let (mode, set_mode) = signal(TempMode::Unspecified);
-    let (exact, set_exact) = signal(String::new());
-    let (min_s, set_min_s) = signal(String::new());
-    let (max_s, set_max_s) = signal(String::new());
-
-    let refresh = {
-        move || match mode.get() {
-            TempMode::Unspecified => on_change.set(None),
-            TempMode::Exact => {
-                if let Ok(v) = exact.get().trim().parse::<u16>() {
-                    on_change.set(Some(TemperatureSpec::Exact(Celsius(v))));
-                } else {
-                    on_change.set(None);
-                }
-            }
-            TempMode::Range => {
-                let a = min_s.get().trim().parse::<u16>().ok();
-                let b = max_s.get().trim().parse::<u16>().ok();
-                if let (Some(x), Some(y)) = (a, b) {
-                    let (lo, hi) = if x <= y { (x, y) } else { (y, x) };
-                    on_change.set(Some(TemperatureSpec::Range {
-                        min: Celsius(lo),
-                        max: Celsius(hi),
-                    }));
-                } else {
-                    on_change.set(None);
-                }
-            }
-        }
-    };
-
-    view! {
-        <div class="filter-field">
-            <label>{label}</label>
-            <select
-                class="input"
-                on:change=move |e| {
-                    match event_target_value(&e).as_str() {
-                        "Exact" => set_mode.set(TempMode::Exact),
-                        "Range" => set_mode.set(TempMode::Range),
-                        _ => set_mode.set(TempMode::Unspecified),
-                    }
-                    refresh();
-                }
-            >
-                <option value="Unspecified" selected>"Unspecified"</option>
-                <option value="Exact">"Exact"</option>
-                <option value="Range">"Range"</option>
-            </select>
-
-            <Show when=move || mode.get() == TempMode::Exact>
-                <input
-                    class="input mt-6"
-                    type="number" inputmode="numeric"
-                    placeholder="°C (e.g. 200)"
-                    prop:value=move || exact.get()
-                    on:input=move |e| { set_exact.set(event_target_value(&e)); refresh(); }
-                />
-            </Show>
-
-            <Show when=move || mode.get() == TempMode::Range>
-                <div class="row two mt-6">
-                    <input
-                        class="input" type="number" inputmode="numeric"
-                        placeholder="Min °C"
-                        prop:value=move || min_s.get()
-                        on:input=move |e| { set_min_s.set(event_target_value(&e)); refresh(); }
-                    />
-                    <input
-                        class="input" type="number" inputmode="numeric"
-                        placeholder="Max °C"
-                        prop:value=move || max_s.get()
-                        on:input=move |e| { set_max_s.set(event_target_value(&e)); refresh(); }
-                    />
-                </div>
-            </Show>
         </div>
     }
 }

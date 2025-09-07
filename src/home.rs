@@ -15,7 +15,8 @@ pub fn HomePage() -> impl IntoView {
                     if let Some(u) = username {
                         view! { <p>{format!("Logged in as {u}")}</p><br /><LogoutButton /> }.into_any()
                     } else {
-                        view! { <div><a href="/login">"Login"</a></div> }.into_any()
+                        //view! { <div><a href="/login">"Login"</a></div> }.into_any()
+                        view! {}.into_any()
                     }
                 }
             </div>

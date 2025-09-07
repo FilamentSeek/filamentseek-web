@@ -12,8 +12,6 @@ pub struct Product {
     pub material: FilamentMaterial,
     pub diameter: FilamentDiameter,
     pub weight: Grams,
-    pub nozzle_temp: Option<TemperatureSpec>,
-    pub bed_temp: Option<TemperatureSpec>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -77,27 +75,6 @@ impl Display for FilamentMaterial {
         }
     }
 }
-
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TemperatureSpec {
-    /// Exact value (e.g. vendor says "200°C only")
-    Exact(Celsius),
-    /// Inclusive range (e.g. "190–220°C")
-    Range { min: Celsius, max: Celsius },
-}
-
-impl Display for TemperatureSpec {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TemperatureSpec::Exact(t) => write!(f, "{}°C", t.0),
-            TemperatureSpec::Range { min, max } if min == max => write!(f, "{}°C", min.0),
-            TemperatureSpec::Range { min, max } => write!(f, "{}–{}°C", min.0, max.0),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Celsius(pub u16);
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Grams(pub u16);
@@ -179,7 +156,6 @@ impl FilamentDiameter {
     }
 
     pub fn from_mm_string(s: &str) -> Self {
-        // allow "1.75", "1,75", "1.75mm", "  1.75 mm  "
         let v = s.trim().trim_end_matches("mm").trim().replace(',', ".");
         let mm: f32 = v.parse().unwrap_or(0.0);
         let h = (mm * 100.0).round() as u16;

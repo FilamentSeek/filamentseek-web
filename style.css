@@ -220,3 +220,11 @@ tr td {
     background: var(--danger);
     border-color: var(--danger);
 }
+
+.loading {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 18px;
+}

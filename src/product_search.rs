@@ -3,7 +3,7 @@ use leptos::{prelude::*, reactive::spawn_local};
 use serde::Serialize;
 
 use crate::{
-    product::{Cents, FilamentMaterial, KNOWN_MATERIALS, Product},
+    product::{Cents, FilamentDiameter, FilamentMaterial, Grams, KNOWN_MATERIALS, Product},
     request::{Auth, request_json},
 };
 
@@ -36,11 +36,16 @@ enum WeightFilter {
 #[derive(Serialize)]
 pub struct ProductSearchRequest {
     name: Option<String>,
-    // etc
+    min_price: Option<Cents>,
+    max_price: Option<Cents>,
+    material: Option<FilamentMaterial>,
+    diameter: Option<FilamentDiameter>,
+    weight: Option<Grams>,
 }
 
 #[component]
 pub fn ProductSearch() -> impl IntoView {
+    let (seeking, set_seeking) = signal(true);
     let (results, set_results) = signal::<Vec<Product>>(vec![]);
 
     let (query, set_query) = signal(String::new());
@@ -73,26 +78,82 @@ pub fn ProductSearch() -> impl IntoView {
                 Some(query.get().trim().to_string())
             };
 
-            let payload: ProductSearchRequest = ProductSearchRequest { name: query };
+            let payload: ProductSearchRequest = ProductSearchRequest {
+                name: query,
+                min_price: min_price.get(),
+                max_price: max_price.get(),
+                material: match mat_filter.get() {
+                    MaterialFilter::Any => None,
+                    MaterialFilter::Material(m) => Some(m.clone()),
+                    MaterialFilter::Other(s) => {
+                        if s.trim().is_empty() {
+                            None
+                        } else {
+                            Some(FilamentMaterial::Other(s.trim().to_string()))
+                        }
+                    }
+                    MaterialFilter::Unspecified => Some(FilamentMaterial::Unspecified),
+                },
+                diameter: match diam_filter.get() {
+                    DiameterFilter::Any => None,
+                    DiameterFilter::D175 => Some(FilamentDiameter::D175),
+                    DiameterFilter::D285 => Some(FilamentDiameter::D285),
+                    DiameterFilter::Other(s) => {
+                        if s.trim().is_empty() {
+                            None
+                        } else {
+                            Some(FilamentDiameter::from_mm_string(&s))
+                        }
+                    }
+                },
+                weight: match weight_filter.get() {
+                    WeightFilter::Any => None,
+                    WeightFilter::G500 => Some(Grams(500)),
+                    WeightFilter::G750 => Some(Grams(750)),
+                    WeightFilter::G1000 => Some(Grams(1000)),
+                    WeightFilter::G2000 => Some(Grams(2000)),
+                    WeightFilter::Other(s) => {
+                        if s.trim().is_empty() {
+                            None
+                        } else {
+                            Some(Grams::from_kg_string(&s))
+                        }
+                    }
+                },
+            };
 
             spawn_local(async move {
-                let products = request_json::<ProductSearchRequest, Vec<Product>>(
-                    "products/search",
-                    Auth::Unauthorized,
-                    Method::POST,
-                    Some(&payload),
-                )
-                .await
-                .unwrap_or_else(|_| vec![]);
-
-                set_results.set(products);
+                set_seeking.set(true);
+                set_results.set(search_products(&payload).await);
+                set_seeking.set(false);
             });
         }
     };
 
+    Effect::new(move |_| {
+        spawn_local(async move {
+            // seeking is already true from initial state
+            set_results.set(
+                search_products(&ProductSearchRequest {
+                    name: None,
+                    min_price: None,
+                    max_price: None,
+                    material: None,
+                    diameter: None,
+                    weight: None,
+                })
+                .await,
+            );
+            set_seeking.set(false);
+        });
+    });
+
     view! {
         <div class="container full-width">
             <section style="display: grid; gap: 12px;">
+                <h3>
+                    "FilamentSeek is in its initial development phase. Features, content, and design are still in progress."
+                </h3>
                 <input
                     class="input"
                     type="text"
@@ -139,7 +200,7 @@ pub fn ProductSearch() -> impl IntoView {
                             <input
                                 class="input"
                                 type="text"
-                                placeholder="Enter material…"
+                                placeholder="Material name"
                                 on:input=move |e| {
                                     set_mat_filter.update(|mf| {
                                         if let MaterialFilter::Other(s) = mf {
@@ -174,7 +235,7 @@ pub fn ProductSearch() -> impl IntoView {
                                 class="input"
                                 type="number"
                                 inputmode="numeric"
-                                placeholder="Hundredths of mm (e.g. 175)"
+                                placeholder="Millimeters (e.g. 1.75)"
                                 on:input=move |e| {
                                     set_diam_filter.update(|df| {
                                         if let DiameterFilter::Other(s) = df {
@@ -216,7 +277,7 @@ pub fn ProductSearch() -> impl IntoView {
                                 class="input"
                                 type="number"
                                 inputmode="numeric"
-                                placeholder="Grams (e.g. 1200)"
+                                placeholder="Kilograms (e.g. 1.2)"
                                 on:input=move |e| {
                                     set_weight_filter.update(|wf| {
                                         if let WeightFilter::Other(s) = wf {
@@ -257,12 +318,15 @@ pub fn ProductSearch() -> impl IntoView {
             </section>
 
             <section class="results">
-                <Show
-                    when=move || !results.get().is_empty()
-                    fallback=|| view! { <div class="empty">"No products match your filters."</div> }
-                >
-                    <ProductTable products=results is_admin />
-                </Show>
+                {move || {
+                    if seeking.get() {
+                        view! { <div class="loading">"Seeking..."</div> }.into_any()
+                    } else if results.get().is_empty() {
+                        view! { <div class="empty">"No products match your filters."</div> }.into_any()
+                    } else {
+                        view! { <ProductTable products=results is_admin /> }.into_any()
+                    }
+                }}
             </section>
         </div>
     }
@@ -276,6 +340,7 @@ fn ProductTable(products: ReadSignal<Vec<Product>>, is_admin: bool) -> impl Into
                 <tr>
                     <th>"Name"</th>
                     <th>"Price"</th>
+                    <th>"$ / kg"</th>
                     <th>"Material"</th>
                     <th>"Diameter"</th>
                     <th>"Weight"</th>
@@ -304,6 +369,7 @@ fn ProductRow(product: Product, is_admin: bool) -> impl IntoView {
         <tr class="row-link-wrap">
             <td>{product.name.clone()}</td>
             <td>{product.price.to_string()}</td>
+            <td>{product.price_per_kg.to_string()}</td>
             <td>{product.material.to_string()}</td>
             <td>{product.diameter.to_string()}</td>
             <td>{product.weight.to_string()}</td>
@@ -322,4 +388,15 @@ fn ProductRow(product: Product, is_admin: bool) -> impl IntoView {
             </Show>
         </tr>
     }
+}
+
+async fn search_products(request: &ProductSearchRequest) -> Vec<Product> {
+    request_json::<ProductSearchRequest, Vec<Product>>(
+        "products/search",
+        Auth::Unauthorized,
+        Method::POST,
+        Some(&request),
+    )
+    .await
+    .unwrap_or_else(|_| vec![])
 }

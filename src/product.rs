@@ -83,6 +83,12 @@ impl Grams {
     pub fn as_kg(self) -> f32 {
         self.0 as f32 / 1000.0
     }
+
+    pub fn from_kg_string(s: &str) -> Self {
+        let v = s.trim().trim_end_matches("kg").trim().replace(',', ".");
+        let kg: f32 = v.parse().unwrap_or(0.0);
+        Grams((kg * 1000.0).round() as u16)
+    }
 }
 
 impl Display for Grams {

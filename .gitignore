@@ -1,5 +1,6 @@
 /target
 /dist
-/config.toml
 .env
 /src/env.rs
+/tls/fullchain.pem
+/tls/privkey.pem

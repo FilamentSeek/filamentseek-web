@@ -76,6 +76,10 @@ tr td {
     padding: 0;
 }
 
+td {
+    text-align: center;
+}
+
 .container {
     display: flex;
     flex-direction: column;
@@ -152,7 +156,6 @@ tr td {
 .product-table th,
 .product-table td {
     padding: 10px 14px;
-    text-align: left;
 }
 
 .product-table thead {
@@ -197,14 +200,14 @@ tr td {
     cursor: pointer;
 }
 
-.filter-row {
+.options-row {
     align-items: center;
     display: flex;
     flex-direction: row;
     gap: 2rem;
 }
 
-.filter-row>div {
+.options-row>div {
     box-sizing: border-box;
     display: flex;
     flex: 1;

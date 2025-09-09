@@ -3,7 +3,10 @@ use leptos::{prelude::*, reactive::spawn_local};
 use serde::Serialize;
 
 use crate::{
-    product::{Cents, FilamentDiameter, FilamentMaterial, Grams, KNOWN_MATERIALS, Product},
+    product::{
+        Cents, FilamentColor, FilamentDiameter, FilamentMaterial, Grams, KNOWN_COLORS,
+        KNOWN_MATERIALS, Product, Retailer,
+    },
     request::{Auth, request_json},
 };
 
@@ -11,6 +14,14 @@ use crate::{
 enum MaterialFilter {
     Any,
     Material(FilamentMaterial),
+    Other(String),
+    Unspecified,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum ColorFilter {
+    Any,
+    Material(FilamentColor),
     Other(String),
     Unspecified,
 }
@@ -41,6 +52,7 @@ pub struct ProductSearchRequest {
     material: Option<FilamentMaterial>,
     diameter: Option<FilamentDiameter>,
     weight: Option<Grams>,
+    color: Option<FilamentColor>,
 }
 
 #[component]
@@ -53,6 +65,7 @@ pub fn ProductSearch() -> impl IntoView {
     let (max_price, set_max_price) = signal::<Option<Cents>>(None);
 
     let (mat_filter, set_mat_filter) = signal::<MaterialFilter>(MaterialFilter::Any);
+    let (col_filter, set_col_filter) = signal::<ColorFilter>(ColorFilter::Any);
     let (diam_filter, set_diam_filter) = signal::<DiameterFilter>(DiameterFilter::Any);
     let (weight_filter, set_weight_filter) = signal::<WeightFilter>(WeightFilter::Any);
 
@@ -93,6 +106,18 @@ pub fn ProductSearch() -> impl IntoView {
                         }
                     }
                     MaterialFilter::Unspecified => Some(FilamentMaterial::Unspecified),
+                },
+                color: match col_filter.get() {
+                    ColorFilter::Any => None,
+                    ColorFilter::Material(c) => Some(c.clone()),
+                    ColorFilter::Other(s) => {
+                        if s.trim().is_empty() {
+                            None
+                        } else {
+                            Some(FilamentColor::Other(s.trim().to_string()))
+                        }
+                    }
+                    ColorFilter::Unspecified => Some(FilamentColor::Unspecified),
                 },
                 diameter: match diam_filter.get() {
                     DiameterFilter::Any => None,
@@ -141,6 +166,7 @@ pub fn ProductSearch() -> impl IntoView {
                     material: None,
                     diameter: None,
                     weight: None,
+                    color: None,
                 })
                 .await,
             );
@@ -160,7 +186,7 @@ pub fn ProductSearch() -> impl IntoView {
                     placeholder="Search by name…"
                     on:input=move |e| set_query.set(event_target_value(&e))
                 />
-                <div class="filter-row">
+                <div class="options-row">
                     <div>
                         <label>"Material"</label>
                         <select
@@ -211,7 +237,57 @@ pub fn ProductSearch() -> impl IntoView {
                             />
                         </Show>
                     </div>
-                    <div class="filter-field">
+                    <div>
+                        <label>"Color"</label>
+                        <select
+                            class="input"
+                            on:change=move |e| {
+                                let v = event_target_value(&e);
+
+                                match v.as_str() {
+                                    "Any" => set_col_filter.set(ColorFilter::Any),
+                                    "Unspecified" => set_col_filter.set(ColorFilter::Unspecified),
+                                    "Other" => set_col_filter.set(ColorFilter::Other(String::new())),
+                                    _ => {
+                                        let chosen = KNOWN_COLORS.iter()
+                                            .find(|m| m.to_string() == v)
+                                            .cloned();
+                                        if let Some(m) = chosen {
+                                            set_col_filter.set(ColorFilter::Material(m));
+                                        } else {
+                                            set_col_filter.set(ColorFilter::Any);
+                                        }
+                                    }
+                                }
+                            }
+                        >
+                            <option value="Any">"Any"</option>
+                            { KNOWN_COLORS.iter()
+                                .map(|m| {
+                                    let label = m.to_string();
+                                    view! { <option value=label.clone()>{ label.clone() }</option> }
+                                })
+                                .collect_view()
+                            }
+                            <option value="Unspecified">"Unspecified"</option>
+                            <option value="Other">"Other…"</option>
+                        </select>
+                        <Show when=move || matches!(col_filter.get(), ColorFilter::Other(_))>
+                            <input
+                                class="input"
+                                type="text"
+                                placeholder="Color name"
+                                on:input=move |e| {
+                                    set_col_filter.update(|mf| {
+                                        if let ColorFilter::Other(s) = mf {
+                                            *s = event_target_value(&e);
+                                        }
+                                    });
+                                }
+                            />
+                        </Show>
+                    </div>
+                    <div>
                         <label>"Diameter"</label>
                         <select
                             class="input"
@@ -248,7 +324,7 @@ pub fn ProductSearch() -> impl IntoView {
                     </div>
 
                     {/* Weight */}
-                    <div class="filter-field">
+                    <div>
                         <label>"Spool Weight"</label>
                         <select
                             class="input"
@@ -290,7 +366,7 @@ pub fn ProductSearch() -> impl IntoView {
                     </div>
                 </div>
 
-                <div class="filter-row">
+                <div class="options-row">
                     <div>
                         <label>"Min $"</label>
                         <input
@@ -342,8 +418,10 @@ fn ProductTable(products: ReadSignal<Vec<Product>>, is_admin: bool) -> impl Into
                     <th>"Price"</th>
                     <th>"$ / kg"</th>
                     <th>"Material"</th>
+                    <th>"Color"</th>
                     <th>"Diameter"</th>
                     <th>"Weight"</th>
+                    <th>"Retailer"</th>
                     <Show when=move || is_admin>
                         <th>"Admin"</th>
                     </Show>
@@ -367,12 +445,23 @@ fn ProductRow(product: Product, is_admin: bool) -> impl IntoView {
 
     view! {
         <tr class="row-link-wrap">
-            <td>{product.name.clone()}</td>
+            <td style="max-width: 200px">{product.name.clone()}</td>
             <td>{product.price.to_string()}</td>
             <td>{product.price_per_kg.to_string()}</td>
             <td>{product.material.to_string()}</td>
+            <td style=format!("color: {}", product.color.to_string())>
+                {product.color.to_string()}
+            </td>
             <td>{product.diameter.to_string()}</td>
             <td>{product.weight.to_string()}</td>
+            <td>
+                {product.retailer.to_string()}
+                {if product.retailer == Retailer::Amazon {
+                    view! { <div>"(#ad)"</div> }.into_any()
+                } else {
+                    view! { <></> }.into_any()
+                }}
+            </td>
 
             <Show when=move || is_admin>
                 <td>

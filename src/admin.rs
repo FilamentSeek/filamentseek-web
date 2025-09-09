@@ -1,9 +1,11 @@
+use std::str::FromStr;
+
 use gloo_net::http::Method;
 use leptos::{prelude::*, reactive::spawn_local};
 use strum::IntoEnumIterator;
 
 use crate::{
-    product::{Cents, FilamentDiameter, FilamentMaterial, Grams, Product},
+    product::{Cents, FilamentColor, FilamentDiameter, FilamentMaterial, Grams, Product, Retailer},
     request::{Auth, request_json},
     session::Session,
 };
@@ -49,9 +51,12 @@ pub fn ProductEditor(product_id: Option<String>) -> impl IntoView {
     let (name, set_name) = signal::<String>(String::new());
     let (url, set_url) = signal::<String>(String::new());
     let (material, set_material) = signal::<FilamentMaterial>(FilamentMaterial::Unspecified);
+    let (retailer, set_retailer) = signal::<Retailer>(Retailer::Other(String::new()));
+    let (retailer_pid, set_retailer_pid) = signal::<String>(String::new());
     let (diameter, set_diameter) = signal::<FilamentDiameter>(FilamentDiameter::D175);
     let (weight, set_weight) = signal::<Grams>(Grams(0));
     let (price_dollars_string, set_price_dollars_string) = signal::<String>(String::new());
+    let (color, set_color) = signal::<String>(String::new());
     let (result_message, set_result_message) = signal::<Option<ResultMessage>>(None);
 
     let params = leptos_router::hooks::use_query_map();
@@ -75,6 +80,9 @@ pub fn ProductEditor(product_id: Option<String>) -> impl IntoView {
                         set_diameter.set(p.diameter);
                         set_weight.set(p.weight);
                         set_price_dollars_string.set(cents_to_dollars_string(p.price));
+                        set_color.set(p.color.to_string());
+                        set_retailer.set(p.retailer);
+                        set_retailer_pid.set(p.retailer_product_id);
                     }
                     Err(e) => {
                         set_result_message.set(Some(ResultMessage::Error(format!(
@@ -140,6 +148,9 @@ pub fn ProductEditor(product_id: Option<String>) -> impl IntoView {
                 material: material.get(),
                 diameter: diameter.get(),
                 weight: weight.get(),
+                retailer: retailer.get(),
+                retailer_product_id: retailer_pid.get().trim().to_string(),
+                color: FilamentColor::from_str(color.get().trim()).unwrap_or_default(),
             };
 
             enum ProductAction {
@@ -193,18 +204,39 @@ pub fn ProductEditor(product_id: Option<String>) -> impl IntoView {
         }
     };
 
-    // helpers
-    let select_value = move || match material.get() {
+    let mat_select_value = move || match material.get() {
         FilamentMaterial::Other(_) => "Other".to_string(),
         m => m.to_string(),
     };
 
-    let other_value = move || match material.get() {
+    let mat_other_value = move || match material.get() {
         FilamentMaterial::Other(s) => s,
         _ => String::new(),
     };
 
+    let plat_select_value = move || match retailer.get() {
+        Retailer::Other(_) => "Other".to_string(),
+        m => m.to_string(),
+    };
+
+    let plat_other_value = move || match retailer.get() {
+        Retailer::Other(s) => s,
+        _ => String::new(),
+    };
+
+    let all_colors = crate::product::FilamentColor::iter().collect::<Vec<_>>();
+
     view! {
+        <h2>"Filament color text demos"</h2>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
+            { all_colors.iter().map(|c| {
+                view! {
+                    <div style={format!("color: {};", c.hex())}>
+                        {c.to_string()}
+                    </div>
+                }
+            }).collect_view() }
+        </div>
         <div class="container full-width">
             <h2>"Create/Update Product"</h2>
             <section style="display: grid; gap: 12px;">
@@ -228,8 +260,8 @@ pub fn ProductEditor(product_id: Option<String>) -> impl IntoView {
                         on:input=move |e| set_name.set(event_target_value(&e))
                     />
                 </div>
-                <div class="filter-row">
-                    <div class="filter-field">
+                <div class="options-row">
+                    <div>
                         <label>"Price"</label>
                         <input
                             class="input"
@@ -243,25 +275,25 @@ pub fn ProductEditor(product_id: Option<String>) -> impl IntoView {
                         <label>"Material"</label>
                         <select
                             class="input"
-                            prop:value=select_value
+                            prop:value=mat_select_value
                             on:change=move |e| {
-                            let v = event_target_value(&e);
+                                let v = event_target_value(&e);
 
-                            if v == "Other" {
-                                set_material.update(|m| if !matches!(m, FilamentMaterial::Other(_)) {
-                                *m = FilamentMaterial::Other(String::new());
-                                });
-                                return;
-                            }
+                                if v == "Other" {
+                                    set_material.update(|m| if !matches!(m, FilamentMaterial::Other(_)) {
+                                    *m = FilamentMaterial::Other(String::new());
+                                    });
+                                    return;
+                                }
 
-                            if let Some(m) = FilamentMaterial::iter()
-                                .filter(|m| !matches!(m, FilamentMaterial::Other(_)))
-                                .find(|m| m.to_string() == v)
-                            {
-                                set_material.set(m.clone());
-                            } else {
-                                set_material.set(FilamentMaterial::Other(v));
-                            }
+                                if let Some(m) = FilamentMaterial::iter()
+                                    .filter(|m| !matches!(m, FilamentMaterial::Other(_)))
+                                    .find(|m| m.to_string() == v)
+                                {
+                                    set_material.set(m.clone());
+                                } else {
+                                    set_material.set(FilamentMaterial::Other(v));
+                                }
                             }
                         >
                             {
@@ -281,14 +313,24 @@ pub fn ProductEditor(product_id: Option<String>) -> impl IntoView {
                             class="input"
                             type="text"
                             placeholder="Material name"
-                            prop:value=other_value
+                            prop:value=mat_other_value
                             on:input=move |e| {
                                 set_material.set(FilamentMaterial::Other(event_target_value(&e)));
                             }
                             />
                         </Show>
                     </div>
-                    <div class="filter-field">
+                    <div>
+                        <label>"Color"</label>
+                        <input
+                            class="input"
+                            type="text"
+                            placeholder="Color name"
+                            prop:value=move || color.get()
+                            on:input=move |e| set_color.set(event_target_value(&e))
+                        />
+                    </div>
+                    <div>
                         <label>"Diameter"</label>
                         <select
                             class="input"
@@ -337,7 +379,7 @@ pub fn ProductEditor(product_id: Option<String>) -> impl IntoView {
                             />
                         </Show>
                     </div>
-                    <div class="filter-field">
+                    <div>
                         <label>"Spool Weight"</label>
                         <input
                             class="input"
@@ -352,6 +394,65 @@ pub fn ProductEditor(product_id: Option<String>) -> impl IntoView {
                             }
                         />
                     </div>
+                    <div>
+                        <label>"Retailer"</label>
+                        <select
+                            class="input"
+                            prop:value=plat_select_value
+                            on:change=move |e| {
+                                let v = event_target_value(&e);
+
+                                if v == "Other" {
+                                    set_retailer.update(|m| if !matches!(m, Retailer::Other(_)) {
+                                    *m = Retailer::Other(String::new());
+                                    });
+                                    return;
+                                }
+
+                                if let Some(m) = Retailer::iter()
+                                    .filter(|m| !matches!(m, Retailer::Other(_)))
+                                    .find(|m| m.to_string() == v)
+                                {
+                                    set_retailer.set(m.clone());
+                                } else {
+                                    set_retailer.set(Retailer::Other(v));
+                                }
+                            }
+                        >
+                            {
+                                Retailer::iter()
+                                    .filter(|m| !matches!(m, Retailer::Other(_)))
+                                    .map(|m| {
+                                        let label = m.to_string();
+                                        view! { <option value=label.clone()>{ label.clone() }</option> }
+                                    })
+                                    .collect_view()
+                            }
+                            <option value="Other">"Other…"</option>
+                        </select>
+
+                        <Show when=move || matches!(retailer.get(), Retailer::Other(_))>
+                            <input
+                            class="input"
+                            type="text"
+                            placeholder="Retailer name"
+                            prop:value=plat_other_value
+                            on:input=move |e| {
+                                set_retailer.set(Retailer::Other(event_target_value(&e)));
+                            }
+                            />
+                        </Show>
+                    </div>
+                    <div>
+                        <label>"Retailer Product ID"</label>
+                        <input
+                            class="input"
+                            type="text"
+                            placeholder="SKU/ASIN"
+                            prop:value=move || retailer_pid.get()
+                            on:input=move |e| set_retailer_pid.set(event_target_value(&e))
+                        />
+                    </div>
                 </div>
                 <div>
                     <label>"Product Page URL"</label>
@@ -362,7 +463,7 @@ pub fn ProductEditor(product_id: Option<String>) -> impl IntoView {
                         on:input=move |e| set_url.set(event_target_value(&e))
                     />
                 </div>
-                <div class="filter-row">
+                <div class="options-row">
                     <button on:click=on_update>
                         {
                             move || if uuid.get().is_empty() {

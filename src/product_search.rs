@@ -1,6 +1,8 @@
+use std::{fmt::Display, str::FromStr};
+
 use gloo_net::http::Method;
 use leptos::{prelude::*, reactive::spawn_local};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     product::{
@@ -18,6 +20,38 @@ enum MaterialFilter {
     Unspecified,
 }
 
+impl FromStr for MaterialFilter {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s == "Any" {
+            Ok(MaterialFilter::Any)
+        } else if s == "Unspecified" {
+            Ok(MaterialFilter::Unspecified)
+        } else if s == "Other" {
+            Ok(MaterialFilter::Other(String::new()))
+        } else {
+            let chosen = KNOWN_MATERIALS.iter().find(|m| m.to_string() == s).cloned();
+            if let Some(m) = chosen {
+                Ok(MaterialFilter::Material(m))
+            } else {
+                Err(())
+            }
+        }
+    }
+}
+
+impl Display for MaterialFilter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MaterialFilter::Any => write!(f, "Any"),
+            MaterialFilter::Material(m) => write!(f, "{}", m),
+            MaterialFilter::Other(s) => write!(f, "Other: {}", s),
+            MaterialFilter::Unspecified => write!(f, "Unspecified"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 enum ColorFilter {
     Any,
@@ -26,12 +60,69 @@ enum ColorFilter {
     Unspecified,
 }
 
+impl FromStr for ColorFilter {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s == "Any" {
+            Ok(ColorFilter::Any)
+        } else if s == "Unspecified" {
+            Ok(ColorFilter::Unspecified)
+        } else if s == "Other" {
+            Ok(ColorFilter::Other(String::new()))
+        } else {
+            let chosen = KNOWN_COLORS.iter().find(|c| c.to_string() == s).cloned();
+            if let Some(c) = chosen {
+                Ok(ColorFilter::Material(c))
+            } else {
+                Err(())
+            }
+        }
+    }
+}
+
+impl Display for ColorFilter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ColorFilter::Any => write!(f, "Any"),
+            ColorFilter::Material(c) => write!(f, "{}", c),
+            ColorFilter::Other(s) => write!(f, "Other: {}", s),
+            ColorFilter::Unspecified => write!(f, "Unspecified"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 enum DiameterFilter {
     Any,
     D175,
     D285,
     Other(String),
+}
+
+impl Display for DiameterFilter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DiameterFilter::Any => write!(f, "Any"),
+            DiameterFilter::D175 => write!(f, "1.75"),
+            DiameterFilter::D285 => write!(f, "2.85"),
+            DiameterFilter::Other(s) => write!(f, "Other: {}", s),
+        }
+    }
+}
+
+impl FromStr for DiameterFilter {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Any" => Ok(DiameterFilter::Any),
+            "1.75" => Ok(DiameterFilter::D175),
+            "2.85" => Ok(DiameterFilter::D285),
+            "Other" => Ok(DiameterFilter::Other(String::new())),
+            _ => Err(()),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -44,6 +135,35 @@ enum WeightFilter {
     Other(String),
 }
 
+impl Display for WeightFilter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WeightFilter::Any => write!(f, "Any"),
+            WeightFilter::G500 => write!(f, "500"),
+            WeightFilter::G750 => write!(f, "750"),
+            WeightFilter::G1000 => write!(f, "1000"),
+            WeightFilter::G2000 => write!(f, "2000"),
+            WeightFilter::Other(s) => write!(f, "Other: {}", s),
+        }
+    }
+}
+
+impl FromStr for WeightFilter {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Any" => Ok(WeightFilter::Any),
+            "500" => Ok(WeightFilter::G500),
+            "750" => Ok(WeightFilter::G750),
+            "1000" => Ok(WeightFilter::G1000),
+            "2000" => Ok(WeightFilter::G2000),
+            "Other" => Ok(WeightFilter::Other(String::new())),
+            _ => Err(()),
+        }
+    }
+}
+
 #[derive(Serialize)]
 pub struct ProductSearchRequest {
     name: Option<String>,
@@ -53,7 +173,11 @@ pub struct ProductSearchRequest {
     diameter: Option<FilamentDiameter>,
     weight: Option<Grams>,
     color: Option<FilamentColor>,
+    page: u32,
+    per_page: u32,
 }
+
+const PER_PAGE: u32 = 50;
 
 #[component]
 pub fn ProductSearch() -> impl IntoView {
@@ -69,9 +193,97 @@ pub fn ProductSearch() -> impl IntoView {
     let (diam_filter, set_diam_filter) = signal::<DiameterFilter>(DiameterFilter::Any);
     let (weight_filter, set_weight_filter) = signal::<WeightFilter>(WeightFilter::Any);
 
+    let (page, set_page) = signal(1u32);
+    let (total_pages, set_total_pages) = signal(1u32);
+    let (total_results, set_total_results) = signal(0u32);
+
     let is_admin = crate::session::Session::load()
         .map(|s| s.is_admin)
         .unwrap_or(false);
+
+    let loc = leptos_router::hooks::use_location();
+    let navigate = leptos_router::hooks::use_navigate();
+
+    // Parse from URL
+    Effect::new(move |_| {
+        let search = loc.search.get_untracked();
+        if let Ok(params) = web_sys::UrlSearchParams::new_with_str(&search) {
+            if let Some(q) = params.get("q") {
+                set_query.set(q);
+            }
+            if let Some(p) = params.get("page") {
+                if let Ok(n) = p.parse::<u32>() {
+                    set_page.set(n);
+                }
+            }
+            if let Some(v) = params.get("min_price") {
+                if let Ok(n) = v.parse::<u32>() {
+                    set_min_price.set(Some(Cents(n)));
+                }
+            }
+            if let Some(v) = params.get("max_price") {
+                if let Ok(n) = v.parse::<u32>() {
+                    set_max_price.set(Some(Cents(n)));
+                }
+            }
+            if let Some(v) = params.get("mat") {
+                if let Ok(m) = v.parse::<MaterialFilter>() {
+                    set_mat_filter.set(m);
+                }
+            }
+            if let Some(v) = params.get("col") {
+                if let Ok(c) = v.parse::<ColorFilter>() {
+                    set_col_filter.set(c);
+                }
+            }
+            if let Some(v) = params.get("diam") {
+                if let Ok(d) = v.parse::<DiameterFilter>() {
+                    set_diam_filter.set(d);
+                }
+            }
+            if let Some(v) = params.get("weight") {
+                if let Ok(w) = v.parse::<WeightFilter>() {
+                    set_weight_filter.set(w);
+                }
+            }
+        }
+    });
+
+    // Write to URL
+    Effect::new(move |_| {
+        let params = web_sys::UrlSearchParams::new().unwrap();
+
+        let q = query.get();
+        if !q.is_empty() {
+            params.set("q", &q);
+        }
+
+        if let Some(min) = min_price.get() {
+            params.set("min_price", &min.0.to_string());
+        }
+        if let Some(max) = max_price.get() {
+            params.set("max_price", &max.0.to_string());
+        }
+
+        if mat_filter.get() != MaterialFilter::Any {
+            params.set("mat", &mat_filter.get().to_string());
+        }
+        if col_filter.get() != ColorFilter::Any {
+            params.set("col", &col_filter.get().to_string());
+        }
+        if diam_filter.get() != DiameterFilter::Any {
+            params.set("diam", &diam_filter.get().to_string());
+        }
+        if weight_filter.get() != WeightFilter::Any {
+            params.set("weight", &weight_filter.get().to_string());
+        }
+
+        if page.get() != 1 {
+            params.set("page", &page.get().to_string());
+        }
+
+        let _ = navigate(&format!("?{}", params.to_string()), Default::default());
+    });
 
     let parse_dollars = |s: String| -> Option<Cents> {
         let s = s.trim();
@@ -83,8 +295,12 @@ pub fn ProductSearch() -> impl IntoView {
         s.parse::<f32>().ok().map(Cents::from_dollars)
     };
 
-    let on_search = {
-        move |_| {
+    let search = {
+        let set_seeking = set_seeking;
+        let set_results = set_results;
+        let set_total_pages = set_total_pages;
+
+        move || {
             let query = if query.get().trim().is_empty() {
                 None
             } else {
@@ -145,32 +361,40 @@ pub fn ProductSearch() -> impl IntoView {
                         }
                     }
                 },
+                page: page.get(),
+                per_page: PER_PAGE,
             };
 
             spawn_local(async move {
                 set_seeking.set(true);
-                set_results.set(search_products(&payload).await);
+                let response = search_products(&payload).await;
+                set_results.set(response.items);
+                set_total_pages.set(response.total_pages as u32);
+                set_total_results.set(response.total as u32);
                 set_seeking.set(false);
             });
         }
     };
 
+    let on_search = move |_| {
+        set_page.set(1);
+        search();
+    };
+
+    let prev_page = StoredValue::new(page.get());
+
+    Effect::new(move |_| {
+        let current = page.get();
+
+        if current != prev_page.get_value() {
+            prev_page.set_value(current);
+            search();
+        }
+    });
+
     Effect::new(move |_| {
         spawn_local(async move {
-            // seeking is already true from initial state
-            set_results.set(
-                search_products(&ProductSearchRequest {
-                    name: None,
-                    min_price: None,
-                    max_price: None,
-                    material: None,
-                    diameter: None,
-                    weight: None,
-                    color: None,
-                })
-                .await,
-            );
-            set_seeking.set(false);
+            search();
         });
     });
 
@@ -400,7 +624,14 @@ pub fn ProductSearch() -> impl IntoView {
                     } else if results.get().is_empty() {
                         view! { <div class="empty">"No products match your filters."</div> }.into_any()
                     } else {
-                        view! { <ProductTable products=results is_admin /> }.into_any()
+                        view! { <ProductTable
+                            products=results
+                            is_admin=is_admin
+                            page=page
+                            total_pages=total_pages
+                            set_page=set_page
+                            total_results=total_results
+                        /> }.into_any()
                     }
                 }}
             </section>
@@ -409,8 +640,19 @@ pub fn ProductSearch() -> impl IntoView {
 }
 
 #[component]
-fn ProductTable(products: ReadSignal<Vec<Product>>, is_admin: bool) -> impl IntoView {
+fn ProductTable(
+    products: ReadSignal<Vec<Product>>,
+    is_admin: bool,
+    set_page: WriteSignal<u32>,
+    page: ReadSignal<u32>,
+    total_pages: ReadSignal<u32>,
+    total_results: ReadSignal<u32>,
+) -> impl IntoView {
     view! {
+        <div style="margin: 12px 0;">
+            {total_results.get()} " results"
+        </div>
+        <Pagination page=page total_pages=total_pages set_page=set_page />
         <table class="product-table">
             <thead>
                 <tr>
@@ -435,6 +677,7 @@ fn ProductTable(products: ReadSignal<Vec<Product>>, is_admin: bool) -> impl Into
                 />
             </tbody>
         </table>
+        <Pagination page=page total_pages=total_pages set_page=set_page />
     }
 }
 
@@ -479,13 +722,55 @@ fn ProductRow(product: Product, is_admin: bool) -> impl IntoView {
     }
 }
 
-async fn search_products(request: &ProductSearchRequest) -> Vec<Product> {
-    request_json::<ProductSearchRequest, Vec<Product>>(
+async fn search_products(request: &ProductSearchRequest) -> ProductSearchResponse {
+    request_json::<ProductSearchRequest, ProductSearchResponse>(
         "products/search",
         Auth::Unauthorized,
         Method::POST,
         Some(&request),
     )
     .await
-    .unwrap_or_else(|_| vec![])
+    .unwrap_or(ProductSearchResponse {
+        items: vec![],
+        total: 0,
+        total_pages: 1,
+    })
+}
+
+#[component]
+pub fn Pagination(
+    set_page: WriteSignal<u32>,
+    page: ReadSignal<u32>,
+    total_pages: ReadSignal<u32>,
+) -> impl IntoView {
+    let go = move |n: u32| set_page.set(n.clamp(1, total_pages.get()));
+    let pages = move || (1..=total_pages.get()).collect::<Vec<u32>>();
+
+    view! {
+        <nav style="display: flex; flex-direction: row; justify-content: center;">
+            <For
+                each=pages
+                key=|n| *n
+                children=move |n| {
+                    let is_current = move || page.get() == n;
+                    view! {
+                        <button
+                            on:click=move |_| go(n)
+                            disabled=is_current
+                            style="width:30px; margin: 20px;"
+                        >
+                            {n}
+                        </button>
+                    }
+                }
+            />
+        </nav>
+    }
+}
+
+#[derive(Deserialize)]
+pub struct ProductSearchResponse {
+    pub items: Vec<Product>,
+    pub total: u64,
+    pub total_pages: u64,
 }

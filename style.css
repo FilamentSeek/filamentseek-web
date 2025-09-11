@@ -231,3 +231,11 @@ td {
     justify-content: center;
     margin-top: 18px;
 }
+
+button:disabled {
+    background: #2a3146;
+    border-color: #2a3146;
+    color: var(--muted);
+    cursor: default;
+    opacity: 0.7;
+}

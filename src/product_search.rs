@@ -185,8 +185,8 @@ pub fn ProductSearch() -> impl IntoView {
     let (results, set_results) = signal::<Vec<Product>>(vec![]);
 
     let (query, set_query) = signal(String::new());
-    let (min_price, set_min_price) = signal::<Option<Cents>>(None);
-    let (max_price, set_max_price) = signal::<Option<Cents>>(None);
+    let (min_price_string, set_min_price_string) = signal::<String>(String::new());
+    let (max_price_string, set_max_price_string) = signal::<String>(String::new());
 
     let (mat_filter, set_mat_filter) = signal::<MaterialFilter>(MaterialFilter::Any);
     let (col_filter, set_col_filter) = signal::<ColorFilter>(ColorFilter::Any);
@@ -204,6 +204,16 @@ pub fn ProductSearch() -> impl IntoView {
     let loc = leptos_router::hooks::use_location();
     let navigate = leptos_router::hooks::use_navigate();
 
+    let parse_dollars = |s: String| -> Option<Cents> {
+        let s = s.trim();
+
+        if s.is_empty() {
+            return None;
+        }
+
+        s.parse::<f32>().ok().map(Cents::from_dollars)
+    };
+
     // Parse from URL
     Effect::new(move |_| {
         let search = loc.search.get_untracked();
@@ -217,14 +227,10 @@ pub fn ProductSearch() -> impl IntoView {
                 }
             }
             if let Some(v) = params.get("min_price") {
-                if let Ok(n) = v.parse::<u32>() {
-                    set_min_price.set(Some(Cents(n)));
-                }
+                set_min_price_string.set(v);
             }
             if let Some(v) = params.get("max_price") {
-                if let Ok(n) = v.parse::<u32>() {
-                    set_max_price.set(Some(Cents(n)));
-                }
+                set_max_price_string.set(v);
             }
             if let Some(v) = params.get("mat") {
                 if let Ok(m) = v.parse::<MaterialFilter>() {
@@ -253,47 +259,49 @@ pub fn ProductSearch() -> impl IntoView {
     Effect::new(move |_| {
         let params = web_sys::UrlSearchParams::new().unwrap();
 
-        let q = query.get();
-        if !q.is_empty() {
-            params.set("q", &q);
+        let query = query.get_untracked();
+        let query = query.trim();
+        if !query.is_empty() {
+            params.set("q", &query);
         }
 
-        if let Some(min) = min_price.get() {
-            params.set("min_price", &min.0.to_string());
-        }
-        if let Some(max) = max_price.get() {
-            params.set("max_price", &max.0.to_string());
+        let min = min_price_string.get_untracked();
+        if !min.is_empty() && parse_dollars(min.clone()).is_some() {
+            params.set("min_price", &min);
         }
 
-        if mat_filter.get() != MaterialFilter::Any {
-            params.set("mat", &mat_filter.get().to_string());
-        }
-        if col_filter.get() != ColorFilter::Any {
-            params.set("col", &col_filter.get().to_string());
-        }
-        if diam_filter.get() != DiameterFilter::Any {
-            params.set("diam", &diam_filter.get().to_string());
-        }
-        if weight_filter.get() != WeightFilter::Any {
-            params.set("weight", &weight_filter.get().to_string());
+        let max = max_price_string.get_untracked();
+        if !max.is_empty() && parse_dollars(max.clone()).is_some() {
+            params.set("max_price", &max);
         }
 
-        if page.get() != 1 {
-            params.set("page", &page.get().to_string());
+        let mat_filter = mat_filter.get_untracked();
+        if mat_filter != MaterialFilter::Any {
+            params.set("mat", &mat_filter.to_string());
+        }
+
+        let col_filter = col_filter.get_untracked();
+        if col_filter != ColorFilter::Any {
+            params.set("col", &col_filter.to_string());
+        }
+
+        let diam_filter = diam_filter.get_untracked();
+        if diam_filter != DiameterFilter::Any {
+            params.set("diam", &diam_filter.to_string());
+        }
+
+        let weight_filter = weight_filter.get_untracked();
+        if weight_filter != WeightFilter::Any {
+            params.set("weight", &weight_filter.to_string());
+        }
+
+        let page = page.get();
+        if page != 1 {
+            params.set("page", &page.to_string());
         }
 
         let _ = navigate(&format!("?{}", params.to_string()), Default::default());
     });
-
-    let parse_dollars = |s: String| -> Option<Cents> {
-        let s = s.trim();
-
-        if s.is_empty() {
-            return None;
-        }
-
-        s.parse::<f32>().ok().map(Cents::from_dollars)
-    };
 
     let search = {
         let set_seeking = set_seeking;
@@ -301,17 +309,17 @@ pub fn ProductSearch() -> impl IntoView {
         let set_total_pages = set_total_pages;
 
         move || {
-            let query = if query.get().trim().is_empty() {
+            let query = if query.get_untracked().trim().is_empty() {
                 None
             } else {
-                Some(query.get().trim().to_string())
+                Some(query.get_untracked().trim().to_string())
             };
 
             let payload: ProductSearchRequest = ProductSearchRequest {
                 name: query,
-                min_price: min_price.get(),
-                max_price: max_price.get(),
-                material: match mat_filter.get() {
+                min_price: parse_dollars(min_price_string.get_untracked()),
+                max_price: parse_dollars(max_price_string.get_untracked()),
+                material: match mat_filter.get_untracked() {
                     MaterialFilter::Any => None,
                     MaterialFilter::Material(m) => Some(m.clone()),
                     MaterialFilter::Other(s) => {
@@ -323,7 +331,7 @@ pub fn ProductSearch() -> impl IntoView {
                     }
                     MaterialFilter::Unspecified => Some(FilamentMaterial::Unspecified),
                 },
-                color: match col_filter.get() {
+                color: match col_filter.get_untracked() {
                     ColorFilter::Any => None,
                     ColorFilter::Material(c) => Some(c.clone()),
                     ColorFilter::Other(s) => {
@@ -335,7 +343,7 @@ pub fn ProductSearch() -> impl IntoView {
                     }
                     ColorFilter::Unspecified => Some(FilamentColor::Unspecified),
                 },
-                diameter: match diam_filter.get() {
+                diameter: match diam_filter.get_untracked() {
                     DiameterFilter::Any => None,
                     DiameterFilter::D175 => Some(FilamentDiameter::D175),
                     DiameterFilter::D285 => Some(FilamentDiameter::D285),
@@ -347,7 +355,7 @@ pub fn ProductSearch() -> impl IntoView {
                         }
                     }
                 },
-                weight: match weight_filter.get() {
+                weight: match weight_filter.get_untracked() {
                     WeightFilter::Any => None,
                     WeightFilter::G500 => Some(Grams(500)),
                     WeightFilter::G750 => Some(Grams(750)),
@@ -361,7 +369,7 @@ pub fn ProductSearch() -> impl IntoView {
                         }
                     }
                 },
-                page: page.get(),
+                page: page.get_untracked(),
                 per_page: PER_PAGE,
             };
 
@@ -381,7 +389,7 @@ pub fn ProductSearch() -> impl IntoView {
         search();
     };
 
-    let prev_page = StoredValue::new(page.get());
+    let prev_page = StoredValue::new(page.get_untracked());
 
     Effect::new(move |_| {
         let current = page.get();
@@ -408,6 +416,7 @@ pub fn ProductSearch() -> impl IntoView {
                     class="input"
                     type="text"
                     placeholder="Search by name…"
+                    prop:value=move || query.get()
                     on:input=move |e| set_query.set(event_target_value(&e))
                 />
                 <div class="options-row">
@@ -415,6 +424,12 @@ pub fn ProductSearch() -> impl IntoView {
                         <label>"Material"</label>
                         <select
                             class="input"
+                            prop:value=move || match mat_filter.get() {
+                                MaterialFilter::Any => "Any".to_string(),
+                                MaterialFilter::Unspecified => "Unspecified".to_string(),
+                                MaterialFilter::Other(_) => "Other".to_string(),
+                                MaterialFilter::Material(m) => m.to_string(),
+                            }
                             on:change=move |e| {
                                 let v = event_target_value(&e);
 
@@ -465,6 +480,12 @@ pub fn ProductSearch() -> impl IntoView {
                         <label>"Color"</label>
                         <select
                             class="input"
+                            prop:value=move || match col_filter.get() {
+                                ColorFilter::Any => "Any".to_string(),
+                                ColorFilter::Unspecified => "Unspecified".to_string(),
+                                ColorFilter::Other(_) => "Other".to_string(),
+                                ColorFilter::Material(c) => c.to_string(),
+                            }
                             on:change=move |e| {
                                 let v = event_target_value(&e);
 
@@ -515,6 +536,12 @@ pub fn ProductSearch() -> impl IntoView {
                         <label>"Diameter"</label>
                         <select
                             class="input"
+                            prop:value=move || match diam_filter.get() {
+                                DiameterFilter::Any => "Any".to_string(),
+                                DiameterFilter::D175 => "1.75".to_string(),
+                                DiameterFilter::D285 => "2.85".to_string(),
+                                DiameterFilter::Other(_) => "Other".to_string(),
+                            }
                             on:change=move |e| {
                                 match event_target_value(&e).as_str() {
                                     "Any" => set_diam_filter.set(DiameterFilter::Any),
@@ -552,6 +579,14 @@ pub fn ProductSearch() -> impl IntoView {
                         <label>"Spool Weight"</label>
                         <select
                             class="input"
+                            prop:value=move || match weight_filter.get() {
+                                WeightFilter::Any => "Any".to_string(),
+                                WeightFilter::G500 => "500".to_string(),
+                                WeightFilter::G750 => "750".to_string(),
+                                WeightFilter::G1000 => "1000".to_string(),
+                                WeightFilter::G2000 => "2000".to_string(),
+                                WeightFilter::Other(_) => "Other".to_string(),
+                            }
                             on:change=move |e| {
                                 match event_target_value(&e).as_str() {
                                     "Any" => set_weight_filter.set(WeightFilter::Any),
@@ -597,7 +632,8 @@ pub fn ProductSearch() -> impl IntoView {
                             class="input"
                             inputmode="decimal"
                             placeholder="e.g. 12.99"
-                            on:input=move |e| set_min_price.set(parse_dollars(event_target_value(&e)))
+                            prop:value=move || min_price_string.get()
+                            on:input=move |e| set_min_price_string.set(event_target_value(&e))
                         />
                     </div>
                     <div>
@@ -606,11 +642,12 @@ pub fn ProductSearch() -> impl IntoView {
                             class="input"
                             inputmode="decimal"
                             placeholder="e.g. 30"
-                            on:input=move |e| set_max_price.set(parse_dollars(event_target_value(&e)))
+                            prop:value=move || max_price_string.get()
+                            on:input=move |e| set_max_price_string.set(event_target_value(&e))
                         />
                     </div>
                     <div style="justify-content: end;">
-                        <button class="" on:click=on_search>
+                        <button on:click=on_search>
                             "Seek"
                         </button>
                     </div>
@@ -649,7 +686,7 @@ fn ProductTable(
     total_results: ReadSignal<u32>,
 ) -> impl IntoView {
     view! {
-        <div style="margin: 12px 0;">
+        <div style="margin: 12px 0; text-align: right;">
             {total_results.get()} " results"
         </div>
         <Pagination page=page total_pages=total_pages set_page=set_page />
@@ -757,7 +794,7 @@ pub fn Pagination(
                         <button
                             on:click=move |_| go(n)
                             disabled=is_current
-                            style="width:30px; margin: 20px;"
+                            style="width:30px; margin: 20px 5px;"
                         >
                             {n}
                         </button>

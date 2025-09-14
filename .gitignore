@@ -2,5 +2,3 @@
 /dist
 .env
 /src/env.rs
-/tls/fullchain.pem
-/tls/privkey.pem

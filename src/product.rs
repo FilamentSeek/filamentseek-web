@@ -51,6 +51,7 @@ pub enum FilamentMaterial {
     Nylon,
     PC,
     ASA,
+    PCTG,
     Unspecified,
     Other(String),
 }
@@ -68,6 +69,7 @@ impl FromStr for FilamentMaterial {
             "Nylon" => Self::Nylon,
             "PC" => Self::PC,
             "ASA" => Self::ASA,
+            "PCTG" => Self::PCTG,
             "Unspecified" => Self::Unspecified,
             other => Self::Other(other.to_string()),
         })
@@ -95,6 +97,7 @@ pub const KNOWN_MATERIALS: &[FilamentMaterial] = &[
     FilamentMaterial::Nylon,
     FilamentMaterial::PC,
     FilamentMaterial::ASA,
+    FilamentMaterial::PCTG,
 ];
 
 impl Display for FilamentMaterial {
@@ -108,6 +111,7 @@ impl Display for FilamentMaterial {
             FilamentMaterial::Nylon => write!(f, "Nylon"),
             FilamentMaterial::PC => write!(f, "Polycarbonate"),
             FilamentMaterial::ASA => write!(f, "ASA"),
+            FilamentMaterial::PCTG => write!(f, "PCTG"),
             FilamentMaterial::Unspecified => write!(f, "Unspecified"),
             FilamentMaterial::Other(s) => write!(f, "{s}"),
         }
@@ -254,6 +258,7 @@ impl From<Retailer> for String {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
 #[serde(try_from = "String", into = "String")]
+#[derive(Default)]
 pub enum FilamentColor {
     Red,
     Blue,
@@ -276,6 +281,7 @@ pub enum FilamentColor {
     Copper,
     GlowInTheDark,
     Multicolor,
+    #[default]
     Unspecified,
     Other(String),
 }
@@ -304,11 +310,6 @@ pub const KNOWN_COLORS: &[FilamentColor] = &[
     FilamentColor::Multicolor,
 ];
 
-impl Default for FilamentColor {
-    fn default() -> Self {
-        FilamentColor::Unspecified
-    }
-}
 
 impl FromStr for FilamentColor {
     type Err = ();

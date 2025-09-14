@@ -19,11 +19,3 @@ web-sys = { version = "0.3.77", features = ["Window", "Storage"] }
 gloo-storage = "0.3.0"
 strum = "0.27.2"
 strum_macros = "0.27.2"
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-tokio = { version = "1.47.1", default-features = false, features = ["macros", "rt", "time"] }
-getrandom = { version = "0.2.16", features = ["js"] }
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-rocket = { version = "0.5.1", features = ["tls", "json"] }
-tokio = { version = "1.47.1", features = ["macros"] }

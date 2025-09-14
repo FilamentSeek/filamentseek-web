@@ -221,10 +221,10 @@ pub fn ProductSearch() -> impl IntoView {
             if let Some(q) = params.get("q") {
                 set_query.set(q);
             }
-            if let Some(p) = params.get("page") {
-                if let Ok(n) = p.parse::<u32>() {
-                    set_page.set(n);
-                }
+            if let Some(p) = params.get("page")
+                && let Ok(n) = p.parse::<u32>()
+            {
+                set_page.set(n);
             }
             if let Some(v) = params.get("min_price") {
                 set_min_price_string.set(v);
@@ -232,25 +232,25 @@ pub fn ProductSearch() -> impl IntoView {
             if let Some(v) = params.get("max_price") {
                 set_max_price_string.set(v);
             }
-            if let Some(v) = params.get("mat") {
-                if let Ok(m) = v.parse::<MaterialFilter>() {
-                    set_mat_filter.set(m);
-                }
+            if let Some(v) = params.get("mat")
+                && let Ok(m) = v.parse::<MaterialFilter>()
+            {
+                set_mat_filter.set(m);
             }
-            if let Some(v) = params.get("col") {
-                if let Ok(c) = v.parse::<ColorFilter>() {
-                    set_col_filter.set(c);
-                }
+            if let Some(v) = params.get("col")
+                && let Ok(c) = v.parse::<ColorFilter>()
+            {
+                set_col_filter.set(c);
             }
-            if let Some(v) = params.get("diam") {
-                if let Ok(d) = v.parse::<DiameterFilter>() {
-                    set_diam_filter.set(d);
-                }
+            if let Some(v) = params.get("diam")
+                && let Ok(d) = v.parse::<DiameterFilter>()
+            {
+                set_diam_filter.set(d);
             }
-            if let Some(v) = params.get("weight") {
-                if let Ok(w) = v.parse::<WeightFilter>() {
-                    set_weight_filter.set(w);
-                }
+            if let Some(v) = params.get("weight")
+                && let Ok(w) = v.parse::<WeightFilter>()
+            {
+                set_weight_filter.set(w);
             }
         }
     });
@@ -262,7 +262,7 @@ pub fn ProductSearch() -> impl IntoView {
         let query = query.get_untracked();
         let query = query.trim();
         if !query.is_empty() {
-            params.set("q", &query);
+            params.set("q", query);
         }
 
         let min = min_price_string.get_untracked();
@@ -300,14 +300,10 @@ pub fn ProductSearch() -> impl IntoView {
             params.set("page", &page.to_string());
         }
 
-        let _ = navigate(&format!("?{}", params.to_string()), Default::default());
+        navigate(&format!("?{}", params.to_string()), Default::default());
     });
 
     let search = {
-        let set_seeking = set_seeking;
-        let set_results = set_results;
-        let set_total_pages = set_total_pages;
-
         move || {
             let query = if query.get_untracked().trim().is_empty() {
                 None
@@ -739,7 +735,8 @@ fn ProductRow(product: Product, is_admin: bool) -> impl IntoView {
                 {if product.retailer == Retailer::Amazon {
                     view! { <div>"(#ad)"</div> }.into_any()
                 } else {
-                    view! { <></> }.into_any()
+                    let _: () = view! { <></> };
+                    ().into_any()
                 }}
             </td>
 
@@ -764,7 +761,7 @@ async fn search_products(request: &ProductSearchRequest) -> ProductSearchRespons
         "products/search",
         Auth::Unauthorized,
         Method::POST,
-        Some(&request),
+        Some(request),
     )
     .await
     .unwrap_or(ProductSearchResponse {

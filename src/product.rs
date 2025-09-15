@@ -409,7 +409,7 @@ impl FilamentColor {
             Self::GlowInTheDark => "#ADFF2F",
             Self::Multicolor => "#808080",
             Self::Unspecified => "#808080",
-            Self::Other(_) => "#000000",
+            Self::Other(_) => "#808080",
         }
     }
 }

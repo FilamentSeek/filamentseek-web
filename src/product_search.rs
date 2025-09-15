@@ -796,7 +796,7 @@ fn ProductRow(product: Product, is_admin: bool) -> impl IntoView {
 
             <td class="wide-col">{product.material.to_string()}</td>
 
-            <td class="wide-col" style=format!("color: {}", product.color.to_string())>
+            <td class="wide-col" style=format!("color: {}", product.color.hex())>
                 {product.color.to_string()}
             </td>
 

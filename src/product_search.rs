@@ -20,6 +20,13 @@ enum MaterialFilter {
     Unspecified,
 }
 
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum SortBy {
+    Price,
+    PricePerKg,
+}
+
 impl FromStr for MaterialFilter {
     type Err = ();
 
@@ -175,6 +182,7 @@ pub struct ProductSearchRequest {
     color: Option<FilamentColor>,
     page: u32,
     per_page: u32,
+    sort_by: Option<SortBy>,
 }
 
 const PER_PAGE: u32 = 50;
@@ -192,6 +200,7 @@ pub fn ProductSearch() -> impl IntoView {
     let (col_filter, set_col_filter) = signal::<ColorFilter>(ColorFilter::Any);
     let (diam_filter, set_diam_filter) = signal::<DiameterFilter>(DiameterFilter::Any);
     let (weight_filter, set_weight_filter) = signal::<WeightFilter>(WeightFilter::Any);
+    let (sortby, set_sortby) = signal::<SortBy>(SortBy::PricePerKg);
 
     let (page, set_page) = signal(1u32);
     let (total_pages, set_total_pages) = signal(1u32);
@@ -252,6 +261,11 @@ pub fn ProductSearch() -> impl IntoView {
             {
                 set_weight_filter.set(w);
             }
+            if let Some(v) = params.get("sortby") {
+                if let Ok(s) = serde_json::from_str::<SortBy>(&format!("\"{}\"", v)) {
+                    set_sortby.set(s);
+                }
+            }
         }
     });
 
@@ -300,6 +314,12 @@ pub fn ProductSearch() -> impl IntoView {
             params.set("page", &page.to_string());
         }
 
+        let sortby = sortby.get();
+        if sortby != SortBy::PricePerKg {
+            if let Ok(s) = serde_json::to_string(&sortby) {
+                params.set("sortby", s.trim_matches('"'));
+            }
+        }
         navigate(&format!("?{}", params.to_string()), Default::default());
     });
 
@@ -367,6 +387,7 @@ pub fn ProductSearch() -> impl IntoView {
                 },
                 page: page.get_untracked(),
                 per_page: PER_PAGE,
+                sort_by: Some(sortby.get_untracked()),
             };
 
             spawn_local(async move {
@@ -400,6 +421,11 @@ pub fn ProductSearch() -> impl IntoView {
         spawn_local(async move {
             search();
         });
+    });
+
+    Effect::new(move |_| {
+        let _ = sortby.get();
+        search();
     });
 
     view! {
@@ -664,6 +690,8 @@ pub fn ProductSearch() -> impl IntoView {
                             total_pages=total_pages
                             set_page=set_page
                             total_results=total_results
+                            sortby=sortby
+                            set_sortby=set_sortby
                         /> }.into_any()
                     }
                 }}
@@ -680,36 +708,56 @@ fn ProductTable(
     page: ReadSignal<u32>,
     total_pages: ReadSignal<u32>,
     total_results: ReadSignal<u32>,
+    sortby: ReadSignal<SortBy>,
+    set_sortby: WriteSignal<SortBy>,
 ) -> impl IntoView {
     view! {
         <div style="margin: 12px 0; text-align: right;">
             {total_results.get()} " results"
         </div>
         <Pagination page=page total_pages=total_pages set_page=set_page />
-        <table class="product-table">
-            <thead>
-                <tr>
-                    <th>"Name"</th>
-                    <th>"Price"</th>
-                    <th>"$ / kg"</th>
-                    <th>"Material"</th>
-                    <th>"Color"</th>
-                    <th>"Diameter"</th>
-                    <th>"Weight"</th>
-                    <th>"Retailer"</th>
-                    <Show when=move || is_admin>
-                        <th>"Admin"</th>
-                    </Show>
-                </tr>
-            </thead>
-            <tbody>
-                <For
-                    each=move || products.get()
-                    key=|p| p.uuid.clone()
-                    children=move |p: Product| view! { <ProductRow product=p is_admin /> }
-                />
-            </tbody>
-        </table>
+        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+            <table class="product-table">
+                <thead>
+                    <tr>
+                        <th>"Name"</th>
+                        <th>
+                            <button
+                                disabled={move || matches!(sortby.get(), SortBy::Price)}
+                                on:click=move |_| {
+                                    set_sortby.set(SortBy::Price);
+                                }>
+                                "Price"
+                            </button>
+                        </th>
+                        <th>
+                            <button
+                                disabled={move || matches!(sortby.get(), SortBy::PricePerKg)}
+                                on:click=move |_| {
+                                    set_sortby.set(SortBy::PricePerKg);
+                                }>
+                                "$ / kg"
+                            </button>
+                        </th>
+                        <th>"Material"</th>
+                        <th>"Color"</th>
+                        <th>"Diameter"</th>
+                        <th>"Weight"</th>
+                        <th>"Retailer"</th>
+                        <Show when=move || is_admin>
+                            <th>"Admin"</th>
+                        </Show>
+                    </tr>
+                </thead>
+                <tbody>
+                    <For
+                        each=move || products.get()
+                        key=|p| p.uuid.clone()
+                        children=move |p: Product| view! { <ProductRow product=p is_admin /> }
+                    />
+                </tbody>
+            </table>
+        </div>
         <Pagination page=page total_pages=total_pages set_page=set_page />
     }
 }

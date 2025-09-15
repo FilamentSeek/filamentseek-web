@@ -91,29 +91,28 @@ button:disabled {
 .container {
     display: flex;
     flex-direction: column;
-    margin: 4rem auto;
+    margin: 24px auto;
     max-width: 420px;
+    max-width: 1200px;
     padding: 0 1rem;
+    padding: 0 16px 48px;
 }
 
 .card {
+    align-items: center;
     background: var(--panel);
     border: 1px solid #232839;
     border-radius: var(--border-radius);
     display: flex;
     flex-direction: column;
+    gap: 14px;
+    min-height: 72px;
     padding: 1rem;
 }
 
 .err {
     color: var(--danger);
     margin-top: .5rem;
-}
-
-.container {
-    margin: 24px auto;
-    max-width: 1200px;
-    padding: 0 16px 48px;
 }
 
 .input {
@@ -142,14 +141,6 @@ button:disabled {
     color: var(--muted);
     padding: 18px;
     text-align: center;
-}
-
-.card {
-    align-items: center;
-    display: flex;
-    gap: 14px;
-    min-height: 72px;
-    padding: 12px 14px;
 }
 
 .product-table {
@@ -246,4 +237,6 @@ button:disabled {
 @media (max-width: 800px) {
     .compact-col { display: table-cell; }
     .wide-col { display: none; }
+    .card { padding: 0; }
+    .container { padding: 0.5rem; }
 }

@@ -716,65 +716,63 @@ fn ProductTable(
             {total_results.get()} " results"
         </div>
         <Pagination page=page total_pages=total_pages set_page=set_page />
-        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
-            <table class="product-table">
-                <thead>
-                    <tr>
-                        <th>"Name"</th>
-                        <th class="wide-col">
-                            <button
-                                disabled={move || matches!(sortby.get(), SortBy::Price)}
-                                on:click=move |_| {
-                                    set_sortby.set(SortBy::Price);
-                                }>
-                                "Price"
-                            </button>
-                        </th>
-                        <th class="wide-col">
-                            <button
-                                disabled={move || matches!(sortby.get(), SortBy::PricePerKg)}
-                                on:click=move |_| {
-                                    set_sortby.set(SortBy::PricePerKg);
-                                }>
-                                "$ / kg"
-                            </button>
-                        </th>
-                        <th class="compact-col">
-                            <button
-                                disabled={move || matches!(sortby.get(), SortBy::Price)}
-                                on:click=move |_| {
-                                    set_sortby.set(SortBy::Price);
-                                }>
-                                "Price"
-                            </button>
-                            <button
-                                disabled={move || matches!(sortby.get(), SortBy::PricePerKg)}
-                                on:click=move |_| {
-                                    set_sortby.set(SortBy::PricePerKg);
-                                }>
-                                "$ / kg"
-                            </button>
-                        </th>
-                        <th class="wide-col">"Material"</th>
-                        <th class="wide-col">"Color"</th>
-                        <th class="wide-col">"Diameter"</th>
-                        <th class="wide-col">"Weight"</th>
-                        <th class="compact-col">"Specs"</th>
-                        <th class="wide-col">"Retailer"</th>
-                        <Show when=move || is_admin>
-                        <th>"Admin"</th>
-                        </Show>
-                    </tr>
-                </thead>
-                <tbody>
-                    <For
-                        each=move || products.get()
-                        key=|p| p.uuid.clone()
-                        children=move |p: Product| view! { <ProductRow product=p is_admin /> }
-                    />
-                </tbody>
-            </table>
-        </div>
+        <table class="product-table">
+            <thead>
+                <tr>
+                    <th>"Name"</th>
+                    <th class="wide-col">
+                        <button
+                            disabled={move || matches!(sortby.get(), SortBy::Price)}
+                            on:click=move |_| {
+                                set_sortby.set(SortBy::Price);
+                            }>
+                            "Price"
+                        </button>
+                    </th>
+                    <th class="wide-col">
+                        <button
+                            disabled={move || matches!(sortby.get(), SortBy::PricePerKg)}
+                            on:click=move |_| {
+                                set_sortby.set(SortBy::PricePerKg);
+                            }>
+                            "$ / kg"
+                        </button>
+                    </th>
+                    <th class="compact-col">
+                        <button
+                            disabled={move || matches!(sortby.get(), SortBy::Price)}
+                            on:click=move |_| {
+                                set_sortby.set(SortBy::Price);
+                            }>
+                            "Price"
+                        </button>
+                        <button
+                            disabled={move || matches!(sortby.get(), SortBy::PricePerKg)}
+                            on:click=move |_| {
+                                set_sortby.set(SortBy::PricePerKg);
+                            }>
+                            "$ / kg"
+                        </button>
+                    </th>
+                    <th class="wide-col">"Material"</th>
+                    <th class="wide-col">"Color"</th>
+                    <th class="wide-col">"Diameter"</th>
+                    <th class="wide-col">"Weight"</th>
+                    <th class="compact-col">"Specs"</th>
+                    <th class="wide-col">"Retailer"</th>
+                    <Show when=move || is_admin>
+                    <th>"Admin"</th>
+                    </Show>
+                </tr>
+            </thead>
+            <tbody>
+                <For
+                    each=move || products.get()
+                    key=|p| p.uuid.clone()
+                    children=move |p: Product| view! { <ProductRow product=p is_admin /> }
+                />
+            </tbody>
+        </table>
         <Pagination page=page total_pages=total_pages set_page=set_page />
     }
 }
@@ -786,7 +784,7 @@ fn ProductRow(product: Product, is_admin: bool) -> impl IntoView {
 
     view! {
         <tr class="row-link-wrap">
-            <td style="max-width: 200px">{product.name.clone()}</td>
+            <td>{product.name.clone()}</td>
             <td class="wide-col">{product.price.to_string()}</td>
             <td class="wide-col">{product.price_per_kg.to_string()}</td>
 

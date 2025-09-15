@@ -721,7 +721,7 @@ fn ProductTable(
                 <thead>
                     <tr>
                         <th>"Name"</th>
-                        <th>
+                        <th class="wide-col">
                             <button
                                 disabled={move || matches!(sortby.get(), SortBy::Price)}
                                 on:click=move |_| {
@@ -730,7 +730,23 @@ fn ProductTable(
                                 "Price"
                             </button>
                         </th>
-                        <th>
+                        <th class="wide-col">
+                            <button
+                                disabled={move || matches!(sortby.get(), SortBy::PricePerKg)}
+                                on:click=move |_| {
+                                    set_sortby.set(SortBy::PricePerKg);
+                                }>
+                                "$ / kg"
+                            </button>
+                        </th>
+                        <th class="compact-col">
+                            <button
+                                disabled={move || matches!(sortby.get(), SortBy::Price)}
+                                on:click=move |_| {
+                                    set_sortby.set(SortBy::Price);
+                                }>
+                                "Price"
+                            </button>
                             <button
                                 disabled={move || matches!(sortby.get(), SortBy::PricePerKg)}
                                 on:click=move |_| {
@@ -744,7 +760,7 @@ fn ProductTable(
                         <th class="wide-col">"Diameter"</th>
                         <th class="wide-col">"Weight"</th>
                         <th class="compact-col">"Specs"</th>
-                        <th>"Retailer"</th>
+                        <th class="wide-col">"Retailer"</th>
                         <Show when=move || is_admin>
                         <th>"Admin"</th>
                         </Show>
@@ -771,12 +787,21 @@ fn ProductRow(product: Product, is_admin: bool) -> impl IntoView {
     view! {
         <tr class="row-link-wrap">
             <td style="max-width: 200px">{product.name.clone()}</td>
-            <td>{product.price.to_string()}</td>
-            <td>{product.price_per_kg.to_string()}</td>
+            <td class="wide-col">{product.price.to_string()}</td>
+            <td class="wide-col">{product.price_per_kg.to_string()}</td>
+
+            <td class="compact-col">
+                {product.price.to_string()}
+                <br />
+                {product.price_per_kg.to_string()}"/kg"
+            </td>
+
             <td class="wide-col">{product.material.to_string()}</td>
+
             <td class="wide-col" style=format!("color: {}", product.color.to_string())>
                 {product.color.to_string()}
             </td>
+
             <td class="wide-col">{product.diameter.to_string()}</td>
             <td class="wide-col">{product.weight.to_string()}</td>
 
@@ -787,15 +812,24 @@ fn ProductRow(product: Product, is_admin: bool) -> impl IntoView {
                 </div>
                 <div>{product.diameter.to_string()}</div>
                 <div>{product.weight.to_string()}</div>
+                <div>
+                    {product.retailer.to_string()}
+                    {if product.retailer == Retailer::Amazon {
+                        view! { <div>"(#ad)"</div> }.into_any()
+                    } else {
+                        let _: () = view! { <></> };
+                        ().into_any()
+                    }}
+                </div>
             </td>
 
-            <td>
+            <td class="wide-col">
                 {product.retailer.to_string()}
                 {if product.retailer == Retailer::Amazon {
-                view! { <div>"(#ad)"</div> }.into_any()
+                    view! { <div>"(#ad)"</div> }.into_any()
                 } else {
-                let _: () = view! { <></> };
-                ().into_any()
+                    let _: () = view! { <></> };
+                    ().into_any()
                 }}
             </td>
 

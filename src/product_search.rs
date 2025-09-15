@@ -12,6 +12,9 @@ use crate::{
     request::{Auth, request_json},
 };
 
+const MAX_PRICE_CAP: u32 = 100;
+const MAX_PAGE_SIZE: u32 = 50;
+
 #[derive(Clone, Debug, PartialEq)]
 enum MaterialFilter {
     Any,
@@ -191,11 +194,7 @@ const PER_PAGE: u32 = 50;
 pub fn ProductSearch() -> impl IntoView {
     let (seeking, set_seeking) = signal(true);
     let (results, set_results) = signal::<Vec<Product>>(vec![]);
-
     let (query, set_query) = signal(String::new());
-    let (min_price_string, set_min_price_string) = signal::<String>(String::new());
-    let (max_price_string, set_max_price_string) = signal::<String>(String::new());
-
     let (mat_filter, set_mat_filter) = signal::<MaterialFilter>(MaterialFilter::Any);
     let (col_filter, set_col_filter) = signal::<ColorFilter>(ColorFilter::Any);
     let (diam_filter, set_diam_filter) = signal::<DiameterFilter>(DiameterFilter::Any);
@@ -206,22 +205,14 @@ pub fn ProductSearch() -> impl IntoView {
     let (total_pages, set_total_pages) = signal(1u32);
     let (total_results, set_total_results) = signal(0u32);
 
+    let (min_price_int, set_min_price_int) = signal(0u32);
+    let (max_price_int, set_max_price_int) = signal(100u32);
     let is_admin = crate::session::Session::load()
         .map(|s| s.is_admin)
         .unwrap_or(false);
 
     let loc = leptos_router::hooks::use_location();
     let navigate = leptos_router::hooks::use_navigate();
-
-    let parse_dollars = |s: String| -> Option<Cents> {
-        let s = s.trim();
-
-        if s.is_empty() {
-            return None;
-        }
-
-        s.parse::<f32>().ok().map(Cents::from_dollars)
-    };
 
     // Parse from URL
     Effect::new(move |_| {
@@ -236,10 +227,14 @@ pub fn ProductSearch() -> impl IntoView {
                 set_page.set(n);
             }
             if let Some(v) = params.get("min_price") {
-                set_min_price_string.set(v);
+                set_min_price_int.set(v.parse::<u32>().unwrap_or(0).clamp(0, MAX_PRICE_CAP));
             }
             if let Some(v) = params.get("max_price") {
-                set_max_price_string.set(v);
+                set_max_price_int.set(
+                    v.parse::<u32>()
+                        .unwrap_or(MAX_PRICE_CAP)
+                        .clamp(0, MAX_PRICE_CAP),
+                );
             }
             if let Some(v) = params.get("mat")
                 && let Ok(m) = v.parse::<MaterialFilter>()
@@ -279,14 +274,14 @@ pub fn ProductSearch() -> impl IntoView {
             params.set("q", query);
         }
 
-        let min = min_price_string.get_untracked();
-        if !min.is_empty() && parse_dollars(min.clone()).is_some() {
-            params.set("min_price", &min);
+        let min = min_price_int.get_untracked();
+        if min != 0 {
+            params.set("min_price", &min.to_string());
         }
 
-        let max = max_price_string.get_untracked();
-        if !max.is_empty() && parse_dollars(max.clone()).is_some() {
-            params.set("max_price", &max);
+        let max = max_price_int.get_untracked();
+        if max != MAX_PRICE_CAP {
+            params.set("max_price", &max.to_string());
         }
 
         let mat_filter = mat_filter.get_untracked();
@@ -333,8 +328,8 @@ pub fn ProductSearch() -> impl IntoView {
 
             let payload: ProductSearchRequest = ProductSearchRequest {
                 name: query,
-                min_price: parse_dollars(min_price_string.get_untracked()),
-                max_price: parse_dollars(max_price_string.get_untracked()),
+                min_price: Some(Cents(min_price_int.get_untracked() * 100)),
+                max_price: Some(Cents(max_price_int.get_untracked() * 100)),
                 material: match mat_filter.get_untracked() {
                     MaterialFilter::Any => None,
                     MaterialFilter::Material(m) => Some(m.clone()),
@@ -647,28 +642,18 @@ pub fn ProductSearch() -> impl IntoView {
                     </div>
                 </div>
 
-                <div class="options-row">
-                    <div>
-                        <label>"Min $"</label>
-                        <input
-                            class="input"
-                            inputmode="decimal"
-                            placeholder="e.g. 12.99"
-                            prop:value=move || min_price_string.get()
-                            on:input=move |e| set_min_price_string.set(event_target_value(&e))
-                        />
-                    </div>
-                    <div>
-                        <label>"Max $"</label>
-                        <input
-                            class="input"
-                            inputmode="decimal"
-                            placeholder="e.g. 30"
-                            prop:value=move || max_price_string.get()
-                            on:input=move |e| set_max_price_string.set(event_target_value(&e))
-                        />
-                    </div>
-                    <div style="justify-content: end;">
+                <div class="options-row seek-row">
+                    <RangeSlider
+                        min_value=min_price_int
+                        set_min_value=set_min_price_int
+                        max_value=max_price_int
+                        set_max_value=set_max_price_int
+                        min_limit=0
+                        max_limit=100
+                        step=1
+                        gap=1
+                    />
+                    <div style="justify-content: center;">
                         <button on:click=on_search>
                             "Seek"
                         </button>
@@ -711,11 +696,27 @@ fn ProductTable(
     sortby: ReadSignal<SortBy>,
     set_sortby: WriteSignal<SortBy>,
 ) -> impl IntoView {
+    let p = page.get_untracked();
+    let total = total_results.get_untracked();
+
+    let start = if total == 0 {
+        0
+    } else {
+        (p.saturating_sub(1)) * MAX_PAGE_SIZE + 1
+    };
+    let end = (p * MAX_PAGE_SIZE).min(total);
+
+    let summary = if total_pages.get_untracked() == 1 {
+        format!("{total} results")
+    } else {
+        format!("{start}-{end} of {total} results")
+    };
+
     view! {
-        <div style="margin: 12px 0; text-align: right;">
-            {total_results.get()} " results"
-        </div>
         <Pagination page=page total_pages=total_pages set_page=set_page />
+        <div style="text-align: right;">
+            {summary.clone()}
+        </div>
         <table class="product-table">
             <thead>
                 <tr>
@@ -740,6 +741,7 @@ fn ProductTable(
                     </th>
                     <th class="compact-col">
                         <button
+                            style="margin-bottom: 8px;"
                             disabled={move || matches!(sortby.get(), SortBy::Price)}
                             on:click=move |_| {
                                 set_sortby.set(SortBy::Price);
@@ -773,6 +775,9 @@ fn ProductTable(
                 />
             </tbody>
         </table>
+        <div style="text-align: center;">
+            {summary}
+        </div>
         <Pagination page=page total_pages=total_pages set_page=set_page />
     }
 }
@@ -899,4 +904,102 @@ pub struct ProductSearchResponse {
     pub items: Vec<Product>,
     pub total: u64,
     pub total_pages: u64,
+}
+
+#[component]
+pub fn RangeSlider(
+    min_value: ReadSignal<u32>,
+    set_min_value: WriteSignal<u32>,
+    max_value: ReadSignal<u32>,
+    set_max_value: WriteSignal<u32>,
+    min_limit: u32,
+    max_limit: u32,
+    step: u32,
+    gap: u32,
+) -> impl IntoView {
+    let on_min_input = move |ev: web_sys::Event| {
+        if let Ok(mut v) = event_target_value(&ev).parse::<u32>() {
+            v = v.clamp(min_limit, max_limit);
+            if v > max_value.get() - gap {
+                v = (max_value.get() - gap).max(min_limit);
+            }
+            set_min_value.set(v);
+        }
+    };
+
+    let on_max_input = move |ev: web_sys::Event| {
+        if let Ok(mut v) = event_target_value(&ev).parse::<u32>() {
+            v = v.clamp(min_limit, max_limit);
+            if v < min_value.get() + gap {
+                v = (min_value.get() + gap).min(max_limit);
+            }
+            set_max_value.set(v);
+        }
+    };
+
+    view! {
+        <div>
+            <div class="input-box">
+                <div class="min-box">
+                    <div>
+                        "Min $"
+                    </div>
+                    <input
+                        type="number"
+                        class="min-input"
+                        prop:value=move || min_value.get().to_string()
+                        min=min_limit
+                        prop:max=move || (max_value.get() - gap).to_string()
+                        on:input=on_min_input
+                    />
+                </div>
+                <div class="max-box">
+                    <div>
+                        "Max $"
+                    </div>
+                    <input
+                        type="number"
+                        class="max-input"
+                        prop:value=move || max_value.get().to_string()
+                        prop:min=move || (min_value.get() + gap).to_string()
+                        max=max_limit
+                        on:input=on_max_input
+                    />
+                </div>
+            </div>
+
+            <div class="range-slider">
+                <input
+                    type="range"
+                    min=min_limit
+                    max=max_limit
+                    step=step
+                    prop:value=move || min_value.get().to_string()
+                    on:input=move |ev| {
+                        if let Ok(mut v) = event_target_value(&ev).parse::<u32>() {
+                            if v > max_value.get() - gap {
+                                v = max_value.get() - gap;
+                            }
+                            set_min_value.set(v);
+                        }
+                    }
+                />
+                <input
+                    type="range"
+                    min=min_limit
+                    max=max_limit
+                    step=step
+                    prop:value=move || max_value.get().to_string()
+                    on:input=move |ev| {
+                        if let Ok(mut v) = event_target_value(&ev).parse::<u32>() {
+                            if v < min_value.get() + gap {
+                                v = min_value.get() + gap;
+                            }
+                            set_max_value.set(v);
+                        }
+                    }
+                />
+            </div>
+        </div>
+    }
 }

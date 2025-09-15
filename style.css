@@ -27,7 +27,7 @@ body {
 
 input,
 button {
-    background: #0e1220;
+    background: var(--panel-2);
     border: 1px solid #2a3146;
     border-radius: var(--border-radius);
     color: var(--text);
@@ -239,4 +239,89 @@ button:disabled {
     .wide-col { display: none; }
     .card { padding: 0; }
     .container { padding: 0.5rem; }
+    .seek-row { flex-direction: column; }
+    .seek-row > div { width: 100%; }
+}
+
+.input-box {
+    display: flex;
+    gap: 4px;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.min-box, .max-box {
+    width: 50%;
+}
+
+input[type="number"] {
+    border-radius: 5px;
+    padding: 10px;
+    text-align: center;
+    width: 100%;
+}
+
+.range-slider {
+    background: #8a8a8a;
+    border-radius: 5px;
+    height: 5px;
+    margin: 30px 0;
+    position: relative;
+    width: 100%;
+}
+
+.slider-track {
+    background: var(--accent);
+    border-radius: 5px;
+    height: 100%;
+    left: 0;
+    pointer-events: none;
+    position: absolute;
+    right: 100%;
+}
+
+/* stack two ranges; block track clicks but allow thumb drag */
+.range-slider input[type="range"] {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: none;
+    height: 5px;
+    margin: 0;
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    transform: translateY(-50%);
+    width: 100%;
+}
+
+/* WebKit thumb */
+input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    background: var(--accent);
+    border: 3px solid #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    height: 25px;
+    pointer-events: auto;
+    position: relative;
+    width: 25px;
+    z-index: 2;
+}
+
+/* Firefox thumb */
+input[type="range"]::-moz-range-thumb {
+    background: var(--accent);
+    border: 3px solid #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    height: 25px;
+    pointer-events: auto;
+    position: relative;
+    width: 25px;
+    z-index: 2;
+}
+
+.range-slider * {
+    border: none;
 }

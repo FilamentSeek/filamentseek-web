@@ -784,12 +784,13 @@ fn ProductRow(product: Product, is_admin: bool) -> impl IntoView {
 
     view! {
         <tr class="row-link-wrap">
-            <td>{product.name.clone()}</td>
+            <td style="max-width: 200px">{product.name.clone()}</td>
             <td class="wide-col">{product.price.to_string()}</td>
             <td class="wide-col">{product.price_per_kg.to_string()}</td>
 
             <td class="compact-col">
                 {product.price.to_string()}
+                <br />
                 <br />
                 {product.price_per_kg.to_string()}"/kg"
             </td>

@@ -314,29 +314,29 @@ impl FromStr for FilamentColor {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s {
-            "Black" => Self::Black,
-            "White" => Self::White,
-            "Gray" => Self::Gray,
-            "Silver" => Self::Silver,
-            "Brown" => Self::Brown,
-            "Beige" => Self::Beige,
-            "Transparent" => Self::Transparent,
-            "Red" => Self::Red,
-            "Blue" => Self::Blue,
-            "Green" => Self::Green,
-            "Yellow" => Self::Yellow,
-            "Orange" => Self::Orange,
-            "Purple" => Self::Purple,
-            "Pink" => Self::Pink,
-            "Cyan" => Self::Cyan,
-            "Magenta" => Self::Magenta,
-            "Gold" => Self::Gold,
-            "Bronze" => Self::Bronze,
-            "Copper" => Self::Copper,
-            "GlowInTheDark" => Self::GlowInTheDark,
-            "Multicolor" => Self::Multicolor,
-            "Unspecified" => Self::Unspecified,
+        Ok(match s.to_lowercase().as_str() {
+            "black" => Self::Black,
+            "white" => Self::White,
+            "gray" => Self::Gray,
+            "silver" => Self::Silver,
+            "brown" => Self::Brown,
+            "beige" => Self::Beige,
+            "transparent" => Self::Transparent,
+            "red" => Self::Red,
+            "blue" => Self::Blue,
+            "green" => Self::Green,
+            "yellow" => Self::Yellow,
+            "orange" => Self::Orange,
+            "purple" => Self::Purple,
+            "pink" => Self::Pink,
+            "cyan" => Self::Cyan,
+            "magenta" => Self::Magenta,
+            "gold" => Self::Gold,
+            "bronze" => Self::Bronze,
+            "copper" => Self::Copper,
+            "glowinthedark" => Self::GlowInTheDark,
+            "multicolor" => Self::Multicolor,
+            "unspecified" => Self::Unspecified,
             other => Self::Other(other.to_string()),
         })
     }
@@ -387,7 +387,7 @@ impl From<FilamentColor> for String {
 impl FilamentColor {
     pub fn hex(&self) -> &'static str {
         match self {
-            Self::Black => "#808080",
+            Self::Black => "#FFFFFF",
             Self::White => "#FFFFFF",
             Self::Gray => "#808080",
             Self::Silver => "#C0C0C0",
@@ -407,9 +407,9 @@ impl FilamentColor {
             Self::Bronze => "#CD7F32",
             Self::Copper => "#B87333",
             Self::GlowInTheDark => "#ADFF2F",
-            Self::Multicolor => "#808080",
-            Self::Unspecified => "#808080",
-            Self::Other(_) => "#808080",
+            Self::Multicolor => "#FFFFFF",
+            Self::Unspecified => "#FFFFFF",
+            Self::Other(_) => "#FFFFFF",
         }
     }
 }

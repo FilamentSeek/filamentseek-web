@@ -805,7 +805,7 @@ fn ProductRow(product: Product, is_admin: bool) -> impl IntoView {
 
             <td class="compact-col">
                 <div>{product.material.to_string()}</div>
-                <div style=format!("color: {}", product.color.to_string())>
+                <div style=format!("color: {}", product.color.hex())>
                 {product.color.to_string()}
                 </div>
                 <div>{product.diameter.to_string()}</div>

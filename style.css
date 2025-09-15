@@ -239,3 +239,11 @@ button:disabled {
     justify-content: center;
     margin-top: 18px;
 }
+
+.compact-col { display: none; }
+.wide-col { display: table-cell; }
+
+@media (max-width: 800px) {
+    .compact-col { display: table-cell; }
+    .wide-col { display: none; }
+}

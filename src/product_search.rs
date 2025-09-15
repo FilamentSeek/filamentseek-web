@@ -739,13 +739,14 @@ fn ProductTable(
                                 "$ / kg"
                             </button>
                         </th>
-                        <th>"Material"</th>
-                        <th>"Color"</th>
-                        <th>"Diameter"</th>
-                        <th>"Weight"</th>
+                        <th class="wide-col">"Material"</th>
+                        <th class="wide-col">"Color"</th>
+                        <th class="wide-col">"Diameter"</th>
+                        <th class="wide-col">"Weight"</th>
+                        <th class="compact-col">"Specs"</th>
                         <th>"Retailer"</th>
                         <Show when=move || is_admin>
-                            <th>"Admin"</th>
+                        <th>"Admin"</th>
                         </Show>
                     </tr>
                 </thead>
@@ -772,32 +773,42 @@ fn ProductRow(product: Product, is_admin: bool) -> impl IntoView {
             <td style="max-width: 200px">{product.name.clone()}</td>
             <td>{product.price.to_string()}</td>
             <td>{product.price_per_kg.to_string()}</td>
-            <td>{product.material.to_string()}</td>
-            <td style=format!("color: {}", product.color.to_string())>
+            <td class="wide-col">{product.material.to_string()}</td>
+            <td class="wide-col" style=format!("color: {}", product.color.to_string())>
                 {product.color.to_string()}
             </td>
-            <td>{product.diameter.to_string()}</td>
-            <td>{product.weight.to_string()}</td>
+            <td class="wide-col">{product.diameter.to_string()}</td>
+            <td class="wide-col">{product.weight.to_string()}</td>
+
+            <td class="compact-col">
+                <div>{product.material.to_string()}</div>
+                <div style=format!("color: {}", product.color.to_string())>
+                {product.color.to_string()}
+                </div>
+                <div>{product.diameter.to_string()}</div>
+                <div>{product.weight.to_string()}</div>
+            </td>
+
             <td>
                 {product.retailer.to_string()}
                 {if product.retailer == Retailer::Amazon {
-                    view! { <div>"(#ad)"</div> }.into_any()
+                view! { <div>"(#ad)"</div> }.into_any()
                 } else {
-                    let _: () = view! { <></> };
-                    ().into_any()
+                let _: () = view! { <></> };
+                ().into_any()
                 }}
             </td>
 
             <Show when=move || is_admin>
                 <td>
-                    <a href={format!("/admin?product={}", product.uuid)} target="_blank">"Edit"</a>
-                    <a href={url_admin.clone()} target="_blank">"Product page"</a>
+                <a href={format!("/admin?product={}", product.uuid)} target="_blank">"Edit"</a>
+                <a href={url_admin.clone()} target="_blank">"Product page"</a>
                 </td>
             </Show>
 
             <Show when=move || !is_admin>
                 <td class="overlay-cell">
-                    <a class="row-overlay" href={url_user.clone()} target="_blank"></a>
+                <a class="row-overlay" href={url_user.clone()} target="_blank"></a>
                 </td>
             </Show>
         </tr>

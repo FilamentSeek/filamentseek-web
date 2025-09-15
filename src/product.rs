@@ -310,7 +310,6 @@ pub const KNOWN_COLORS: &[FilamentColor] = &[
     FilamentColor::Multicolor,
 ];
 
-
 impl FromStr for FilamentColor {
     type Err = ();
 
@@ -388,7 +387,7 @@ impl From<FilamentColor> for String {
 impl FilamentColor {
     pub fn hex(&self) -> &'static str {
         match self {
-            Self::Black => "#000000",
+            Self::Black => "#808080",
             Self::White => "#FFFFFF",
             Self::Gray => "#808080",
             Self::Silver => "#C0C0C0",

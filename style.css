@@ -143,61 +143,72 @@ button:disabled {
     text-align: center;
 }
 
-.product-table {
+.product-grid {
     background: var(--panel);
     border: 1px solid #1e242c;
-    border-collapse: collapse;
     border-radius: 10px;
+    display: block;
     overflow: hidden;
     width: 100%;
 }
 
-.product-table th,
-.product-table td {
-    padding: 10px 14px;
+.product-grid-body {
+    display: block;
+    width: 100%;
 }
 
-.product-table thead {
+.product-grid-header-cell,
+.product-grid-cell {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 60px;
+    min-width: 0;
+    overflow: hidden;
+    padding: 10px 14px;
+    text-align: center;
+}
+
+.product-grid-header {
     background: var(--panel-2);
 }
 
-.product-table th {
+.product-grid-header-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+    width: 100%;
+}
+
+.product-grid-header-cell {
     border-bottom: 1px solid #2a323d;
     color: var(--muted);
     font-weight: 600;
 }
 
-.product-table tr:nth-child(even) {
+.product-grid-row:nth-child(even) {
     background: #14191f;
 }
 
-.product-table tr:hover {
+.product-grid-row:hover {
     background: #1b2129;
-}
-
-.row-link-wrap {
-    position: relative;
-}
-
-.row-link-wrap .overlay-cell {
-    inset: 0;
-    margin: 0;
-    padding: 0;
-    position: absolute;
-}
-
-
-.row-overlay {
-    display: block;
-    height: 100%;
     text-decoration: none;
-    width: 100%;
-    z-index: 2;
+    color: var(--text);
 }
 
-.row-overlay:hover {
-    cursor: pointer;
+.product-grid-row {
+    color: inherit;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;
+    text-decoration: none;
+    transition: background 0.15s ease;
+    width: 100%;
 }
+
+.product-grid-row:hover * {
+    color: inherit;
+}
+
 
 .options-row {
     align-items: center;
@@ -232,15 +243,22 @@ button:disabled {
 }
 
 .compact-col { display: none; }
-.wide-col { display: table-cell; }
 
 @media (max-width: 800px) {
-    .compact-col { display: table-cell; }
+    .compact-col { display: block; }
     .wide-col { display: none; }
     .card { padding: 0; }
     .container { padding: 0.5rem; }
     .seek-row { flex-direction: column; }
     .seek-row > div { width: 100%; }
+
+    .product-grid-header-row {
+        grid-template-columns: 2fr 1fr 2fr;
+    }
+
+    .product-grid-row {
+        grid-template-columns: 2fr 1fr 2fr;
+    }
 }
 
 .input-box {

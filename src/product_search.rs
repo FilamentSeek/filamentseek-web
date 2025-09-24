@@ -207,9 +207,6 @@ pub fn ProductSearch() -> impl IntoView {
 
     let (min_price_int, set_min_price_int) = signal(0u32);
     let (max_price_int, set_max_price_int) = signal(100u32);
-    let is_admin = crate::session::Session::load()
-        .map(|s| s.is_admin)
-        .unwrap_or(false);
 
     let loc = leptos_router::hooks::use_location();
     let navigate = leptos_router::hooks::use_navigate();
@@ -256,11 +253,10 @@ pub fn ProductSearch() -> impl IntoView {
             {
                 set_weight_filter.set(w);
             }
-            if let Some(v) = params.get("sortby") {
-                if let Ok(s) = serde_json::from_str::<SortBy>(&format!("\"{}\"", v)) {
+            if let Some(v) = params.get("sortby")
+                && let Ok(s) = serde_json::from_str::<SortBy>(&format!("\"{}\"", v)) {
                     set_sortby.set(s);
                 }
-            }
         }
     });
 
@@ -310,11 +306,10 @@ pub fn ProductSearch() -> impl IntoView {
         }
 
         let sortby = sortby.get();
-        if sortby != SortBy::PricePerKg {
-            if let Ok(s) = serde_json::to_string(&sortby) {
+        if sortby != SortBy::PricePerKg
+            && let Ok(s) = serde_json::to_string(&sortby) {
                 params.set("sortby", s.trim_matches('"'));
             }
-        }
         navigate(&format!("?{}", params.to_string()), Default::default());
     });
 
@@ -670,7 +665,6 @@ pub fn ProductSearch() -> impl IntoView {
                     } else {
                         view! { <ProductTable
                             products=results
-                            is_admin=is_admin
                             page=page
                             total_pages=total_pages
                             set_page=set_page
@@ -688,7 +682,6 @@ pub fn ProductSearch() -> impl IntoView {
 #[component]
 fn ProductTable(
     products: ReadSignal<Vec<Product>>,
-    is_admin: bool,
     set_page: WriteSignal<u32>,
     page: ReadSignal<u32>,
     total_pages: ReadSignal<u32>,
@@ -717,11 +710,11 @@ fn ProductTable(
         <div style="text-align: right;">
             {summary.clone()}
         </div>
-        <table class="product-table">
-            <thead>
-                <tr>
-                    <th>"Name"</th>
-                    <th class="wide-col">
+        <div class="product-grid">
+            <div class="product-grid-header">
+                <div class="product-grid-header-row">
+                    <div class="product-grid-header-cell">"Name"</div>
+                    <div class="product-grid-header-cell wide-col">
                         <button
                             disabled={move || matches!(sortby.get(), SortBy::Price)}
                             on:click=move |_| {
@@ -729,8 +722,8 @@ fn ProductTable(
                             }>
                             "Price"
                         </button>
-                    </th>
-                    <th class="wide-col">
+                    </div>
+                    <div class="product-grid-header-cell wide-col">
                         <button
                             disabled={move || matches!(sortby.get(), SortBy::PricePerKg)}
                             on:click=move |_| {
@@ -738,8 +731,8 @@ fn ProductTable(
                             }>
                             "$ / kg"
                         </button>
-                    </th>
-                    <th class="compact-col">
+                    </div>
+                    <div class="product-grid-header-cell compact-col">
                         <button
                             style="margin-bottom: 8px;"
                             disabled={move || matches!(sortby.get(), SortBy::Price)}
@@ -755,26 +748,23 @@ fn ProductTable(
                             }>
                             "$ / kg"
                         </button>
-                    </th>
-                    <th class="wide-col">"Material"</th>
-                    <th class="wide-col">"Color"</th>
-                    <th class="wide-col">"Diameter"</th>
-                    <th class="wide-col">"Weight"</th>
-                    <th class="compact-col">"Specs"</th>
-                    <th class="wide-col">"Retailer"</th>
-                    <Show when=move || is_admin>
-                    <th>"Admin"</th>
-                    </Show>
-                </tr>
-            </thead>
-            <tbody>
+                    </div>
+                    <div class="product-grid-header-cell wide-col">"Material"</div>
+                    <div class="product-grid-header-cell wide-col">"Color"</div>
+                    <div class="product-grid-header-cell wide-col">"Diameter"</div>
+                    <div class="product-grid-header-cell wide-col">"Weight"</div>
+                    <div class="product-grid-header-cell compact-col">"Specs"</div>
+                    <div class="product-grid-header-cell wide-col">"Retailer"</div>
+                </div>
+            </div>
+            <div class="product-grid-body">
                 <For
                     each=move || products.get()
                     key=|p| p.uuid.clone()
-                    children=move |p: Product| view! { <ProductRow product=p is_admin /> }
+                    children=move |p: Product| view! { <ProductRow product=p /> }
                 />
-            </tbody>
-        </table>
+            </div>
+        </div>
         <div style="text-align: center;">
             {summary}
         </div>
@@ -783,33 +773,32 @@ fn ProductTable(
 }
 
 #[component]
-fn ProductRow(product: Product, is_admin: bool) -> impl IntoView {
-    let url_admin = product.url.clone();
-    let url_user = product.url.clone();
+fn ProductRow(product: Product) -> impl IntoView {
+    let url = product.url.clone();
 
     view! {
-        <tr class="row-link-wrap">
-            <td style="max-width: 200px">{product.name.clone()}</td>
-            <td class="wide-col">{product.price.to_string()}</td>
-            <td class="wide-col">{product.price_per_kg.to_string()}</td>
+        <a href={url.clone()} target="_blank" class="product-grid-row" data-product-id={product.uuid.clone()}>
+            <div class="product-grid-cell">{product.name.clone()}</div>
+            <div class="product-grid-cell wide-col">{product.price.to_string()}</div>
+            <div class="product-grid-cell wide-col">{product.price_per_kg.to_string()}</div>
 
-            <td class="compact-col">
+            <div class="product-grid-cell compact-col">
                 {product.price.to_string()}
                 <br />
                 <br />
                 {product.price_per_kg.to_string()}"/kg"
-            </td>
+            </div>
 
-            <td class="wide-col">{product.material.to_string()}</td>
+            <div class="product-grid-cell wide-col">{product.material.to_string()}</div>
 
-            <td class="wide-col" style=format!("color: {}", product.color.hex())>
+            <div class="product-grid-cell wide-col" style=format!("color: {}", product.color.hex())>
                 {product.color.to_string()}
-            </td>
+            </div>
 
-            <td class="wide-col">{product.diameter.to_string()}</td>
-            <td class="wide-col">{product.weight.to_string()}</td>
+            <div class="product-grid-cell wide-col">{product.diameter.to_string()}</div>
+            <div class="product-grid-cell wide-col">{product.weight.to_string()}</div>
 
-            <td class="compact-col">
+            <div class="product-grid-cell compact-col">
                 <div>{product.material.to_string()}</div>
                 <div style=format!("color: {}", product.color.hex())>
                 {product.color.to_string()}
@@ -825,9 +814,9 @@ fn ProductRow(product: Product, is_admin: bool) -> impl IntoView {
                         ().into_any()
                     }}
                 </div>
-            </td>
+            </div>
 
-            <td class="wide-col">
+            <div class="product-grid-cell wide-col">
                 {product.retailer.to_string()}
                 {if product.retailer == Retailer::Amazon {
                     view! { <div>"(#ad)"</div> }.into_any()
@@ -835,21 +824,8 @@ fn ProductRow(product: Product, is_admin: bool) -> impl IntoView {
                     let _: () = view! { <></> };
                     ().into_any()
                 }}
-            </td>
-
-            <Show when=move || is_admin>
-                <td>
-                <a href={format!("/admin?product={}", product.uuid)} target="_blank">"Edit"</a>
-                <a href={url_admin.clone()} target="_blank">"Product page"</a>
-                </td>
-            </Show>
-
-            <Show when=move || !is_admin>
-                <td class="overlay-cell">
-                <a class="row-overlay" href={url_user.clone()} target="_blank"></a>
-                </td>
-            </Show>
-        </tr>
+            </div>
+        </a>
     }
 }
 

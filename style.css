@@ -349,3 +349,11 @@ input[type="range"]::-moz-range-thumb {
     text-align: left;
     width: 100%;
 }
+
+.compact-col > button{
+    min-width: 40px;
+}
+
+.wide-col > button{
+    min-width: 60px;
+}

@@ -254,9 +254,10 @@ pub fn ProductSearch() -> impl IntoView {
                 set_weight_filter.set(w);
             }
             if let Some(v) = params.get("sortby")
-                && let Ok(s) = serde_json::from_str::<SortBy>(&format!("\"{}\"", v)) {
-                    set_sortby.set(s);
-                }
+                && let Ok(s) = serde_json::from_str::<SortBy>(&format!("\"{}\"", v))
+            {
+                set_sortby.set(s);
+            }
         }
     });
 
@@ -307,9 +308,10 @@ pub fn ProductSearch() -> impl IntoView {
 
         let sortby = sortby.get();
         if sortby != SortBy::PricePerKg
-            && let Ok(s) = serde_json::to_string(&sortby) {
-                params.set("sortby", s.trim_matches('"'));
-            }
+            && let Ok(s) = serde_json::to_string(&sortby)
+        {
+            params.set("sortby", s.trim_matches('"'));
+        }
         navigate(&format!("?{}", params.to_string()), Default::default());
     });
 
@@ -424,13 +426,15 @@ pub fn ProductSearch() -> impl IntoView {
                 <h3>
                     "FilamentSeek is in its initial development phase. Features, content, and design are still in progress."
                 </h3>
-                <input
-                    class="input"
-                    type="text"
-                    placeholder="Search by name…"
-                    prop:value=move || query.get()
-                    on:input=move |e| set_query.set(event_target_value(&e))
-                />
+                <div class="options-row">
+                    <input
+                        class="input"
+                        type="text"
+                        placeholder="Search by name…"
+                        prop:value=move || query.get()
+                        on:input=move |e| set_query.set(event_target_value(&e))
+                    />
+                </div>
                 <div class="options-row">
                     <div>
                         <label>"Material"</label>
@@ -648,8 +652,8 @@ pub fn ProductSearch() -> impl IntoView {
                         step=1
                         gap=1
                     />
-                    <div style="justify-content: center;">
-                        <button on:click=on_search>
+                    <div style="justify-content: center; align-items: center;">
+                        <button style="max-width: 400px" on:click=on_search>
                             "Seek"
                         </button>
                     </div>
@@ -739,7 +743,7 @@ fn ProductTable(
                             on:click=move |_| {
                                 set_sortby.set(SortBy::Price);
                             }>
-                            "Price"
+                            "$"
                         </button>
                         <button
                             disabled={move || matches!(sortby.get(), SortBy::PricePerKg)}
@@ -753,7 +757,7 @@ fn ProductTable(
                     <div class="product-grid-header-cell wide-col">"Color"</div>
                     <div class="product-grid-header-cell wide-col">"Diameter"</div>
                     <div class="product-grid-header-cell wide-col">"Weight"</div>
-                    <div class="product-grid-header-cell compact-col">"Specs"</div>
+                    <div class="product-grid-header-cell compact-col" style="align-items: start;">"Specs"</div>
                     <div class="product-grid-header-cell wide-col">"Retailer"</div>
                 </div>
             </div>
@@ -798,13 +802,13 @@ fn ProductRow(product: Product) -> impl IntoView {
             <div class="product-grid-cell wide-col">{product.diameter.to_string()}</div>
             <div class="product-grid-cell wide-col">{product.weight.to_string()}</div>
 
-            <div class="product-grid-cell compact-col">
-                <div>{product.material.to_string()}</div>
+            <div class="product-grid-cell compact-col compact-specs">
+                <div>"Mat: "{product.material.to_string()}</div>
                 <div style=format!("color: {}", product.color.hex())>
-                {product.color.to_string()}
+                    "Col: "{product.color.to_string()}
                 </div>
-                <div>{product.diameter.to_string()}</div>
-                <div>{product.weight.to_string()}</div>
+                <div>"Dia: "{product.diameter.to_string()}</div>
+                <div>"Wt: "{product.weight.to_string()}</div>
                 <div>
                     {product.retailer.to_string()}
                     {if product.retailer == Retailer::Amazon {

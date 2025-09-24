@@ -8,7 +8,9 @@ pub fn HomePage() -> impl IntoView {
 
     view! {
         <div class="container">
-            <h1>"FilamentSeek"</h1>
+            <div style="display: flex; justify-content: center;">
+                <img src="/public/filamentseek.png" alt="FilamentSeek Logo" style="height: 10em;" />
+            </div>
             <div class="card">
                 <ProductSearch />
                 {

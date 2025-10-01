@@ -868,7 +868,7 @@ pub fn Pagination(
                         <button
                             on:click=move |_| go(n)
                             disabled=is_current
-                            style="width:30px; margin: 20px 5px;"
+                            style="width:35px; margin: 20px 5px;"
                         >
                             {n}
                         </button>

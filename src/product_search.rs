@@ -858,7 +858,7 @@ pub fn Pagination(
     let pages = move || (1..=total_pages.get()).collect::<Vec<u32>>();
 
     view! {
-        <nav style="display: flex; flex-direction: row; justify-content: center;">
+        <nav style="display: flex; flex-direction: row; justify-content: center; flex-wrap: wrap">
             <For
                 each=pages
                 key=|n| *n
@@ -868,7 +868,7 @@ pub fn Pagination(
                         <button
                             on:click=move |_| go(n)
                             disabled=is_current
-                            style="width:35px; margin: 20px 5px;"
+                            style="width:35px; margin: 10px 5px;"
                         >
                             {n}
                         </button>
